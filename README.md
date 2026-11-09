@@ -37,4 +37,3 @@ pyinstaller --noconfirm --windowed --name TradeAgent --paths src src/trade_agent
 ```
 
 See [docs/PROJECT_OVERVIEW.md](docs/PROJECT_OVERVIEW.md) and [docs/TEST_PLAN.md](docs/TEST_PLAN.md).
-

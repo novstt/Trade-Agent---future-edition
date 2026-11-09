@@ -51,4 +51,3 @@ class RegionDetector:
             else:
                 rows[-1].append(region)
         return rows
-

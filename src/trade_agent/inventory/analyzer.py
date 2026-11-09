@@ -91,4 +91,3 @@ class InventoryAnalyzer:
         self.sticker_items.clear()
         self.normal_items.clear()
         return summary
-

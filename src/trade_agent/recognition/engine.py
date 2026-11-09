@@ -78,4 +78,3 @@ class UnavailableOcrEngine:
 
     def read_tokens(self, image: Image.Image) -> list[OcrToken]:
         raise RuntimeError("No local OCR engine is available.")
-

@@ -18,4 +18,3 @@ class MarketAnalyzer:
     ) -> MarketSnapshot:
         # First ten screen-order values are intentionally preserved, including Cancel listings.
         return MarketSnapshot(item_name=item_name, request_price=request_price, listing_prices=tuple(listing_prices)[:self.LISTING_COUNT])
-

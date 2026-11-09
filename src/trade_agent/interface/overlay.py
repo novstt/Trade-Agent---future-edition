@@ -65,4 +65,3 @@ class CompactOverlay(QWidget):
 
     def mouseReleaseEvent(self, event) -> None:
         self._drag_origin = None
-

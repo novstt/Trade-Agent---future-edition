@@ -29,4 +29,3 @@ def test_recognizer_keeps_low_confidence_separate_from_valid() -> None:
     assert len(result.readings) == 2
     assert result.readings[0].validation_status is ValidationStatus.VALID
     assert result.readings[1].validation_status is ValidationStatus.LOW_CONFIDENCE
-

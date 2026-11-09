@@ -78,4 +78,3 @@ class PriceRecognizer:
         else:
             status = ValidationStatus.VALID
         return PriceReading(token.text, value, token.bounding_box, token.confidence, timestamp, status)
-

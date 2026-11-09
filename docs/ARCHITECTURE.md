@@ -11,4 +11,3 @@
 | `interface` | PySide6 presentation, overlay and global emergency stop. |
 
 Providers and engines are Protocol-compatible, so Windows Graphics Capture or PaddleOCR can be introduced independently later.
-

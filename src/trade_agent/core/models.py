@@ -95,4 +95,3 @@ class CaptureFrame:
     image: object
     source: WindowInfo
     timestamp: datetime = field(default_factory=utc_now)
-

@@ -39,4 +39,3 @@ class ProfitEngine:
         eligible = per_item >= -maximum_loss_per_item
         reason = "Eligible" if eligible else "Exceeds maximum loss per item."
         return CalculationResult(average, net_sale, per_item, total, eligible, reason)
-

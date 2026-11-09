@@ -196,4 +196,3 @@ class CaptureWorker(QThread):
                     break
             sleep(self.interval_seconds)
         self.status_changed.emit("STOPPED")
-

@@ -16,4 +16,3 @@ def test_sticker_streak_deduplicates_same_card() -> None:
     assert analyzer.current_streak == 1
     stickers, normal, _ = analyzer.reset_session()
     assert (stickers, normal, analyzer.current_streak) == (1, 0, 0)
-

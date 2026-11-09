@@ -27,4 +27,3 @@ QProgressBar::chunk { background: #7950bf; border-radius: 4px; }
 QCheckBox { spacing: 7px; color: #bbb9c8; }
 QStatusBar { background: #151620; color: #aaa9b6; }
 """
-

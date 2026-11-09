@@ -17,4 +17,3 @@ class MarketPriceExtractor:
         candidates.sort(key=lambda value: (value.bounding_box.y if value.bounding_box else 0,
                                            value.bounding_box.x if value.bounding_box else 0))
         return (candidates[0] if candidates else None, candidates[1:11])
-

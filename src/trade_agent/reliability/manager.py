@@ -37,4 +37,3 @@ class ReliabilityManager:
 
     def safe_stop(self) -> None:
         self.state = ReliabilityState.SAFE_STOP
-

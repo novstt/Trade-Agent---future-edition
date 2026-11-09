@@ -650,4 +650,3 @@ class MainWindow(QMainWindow):
         self.hotkey.uninstall(QApplication.instance())
         self.database.close()
         super().closeEvent(event)
-

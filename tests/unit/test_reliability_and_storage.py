@@ -19,4 +19,3 @@ def test_database_migrates_and_persists_setting(tmp_path) -> None:
     assert database.get_setting("capture_interval_ms") == 420
     assert database.connection.execute("SELECT version FROM schema_version").fetchone()["version"] == 1
     database.close()
-

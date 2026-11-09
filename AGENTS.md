@@ -6,4 +6,3 @@
 - A market snapshot is complete only with exactly ten valid listing values; do not manufacture an average from fewer values.
 - Test business logic before changing UI code. Hardware/window capture must be verified manually on Windows and reported honestly.
 - Do not commit `data/`, local logs, generated executables, tokens, or user captures.
-

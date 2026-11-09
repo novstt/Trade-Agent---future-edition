@@ -6,4 +6,3 @@ __all__ = [
     "DetectedRegion", "OcrEngine", "OcrToken", "PriceRecognizer", "RecognitionResult",
     "RegionDetector", "TesseractOcrEngine", "UnavailableOcrEngine",
 ]
-

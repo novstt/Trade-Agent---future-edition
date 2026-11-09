@@ -48,4 +48,3 @@ class GlobalF9Hotkey(QObject, QAbstractNativeEventFilter):
             except (TypeError, ValueError):
                 pass
         return False, 0
-

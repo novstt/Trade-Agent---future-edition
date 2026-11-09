@@ -35,4 +35,3 @@ where = ["src"]
 testpaths = ["tests"]
 addopts = "-ra"
 markers = ["integration: requires an explicitly selected real Windows window"]
-

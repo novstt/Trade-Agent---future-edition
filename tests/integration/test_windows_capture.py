@@ -16,4 +16,3 @@ def test_real_window_capture_when_hwnd_is_explicitly_provided() -> None:
     assert int(hwnd) in candidates
     frame = provider.capture(candidates[int(hwnd)])
     assert frame.image.width > 1 and frame.image.height > 1
-

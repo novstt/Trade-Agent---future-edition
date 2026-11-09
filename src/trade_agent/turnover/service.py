@@ -39,4 +39,3 @@ class SkinTurnoverService:
             projected_total=result.total_result,
             cycle_note="Ready to place orders" if result.eligible else "Hold: loss threshold exceeded or snapshot incomplete",
         )
-

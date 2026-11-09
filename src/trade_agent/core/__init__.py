@@ -13,4 +13,3 @@ __all__ = [
     "BoundingBox", "CalculationResult", "CaptureFrame", "MarketSnapshot", "PriceReading",
     "ReliabilityState", "ValidationStatus", "WindowInfo",
 ]
-

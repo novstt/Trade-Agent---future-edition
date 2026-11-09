@@ -35,4 +35,3 @@ def test_per_item_loss_threshold_is_inclusive() -> None:
     assert allowed.per_item_result == Decimal("-5.0000")
     assert allowed.eligible is True
     assert rejected.eligible is False
-
