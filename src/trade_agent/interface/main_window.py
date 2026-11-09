@@ -48,23 +48,22 @@ def _reading_from_text(text: str) -> PriceReading:
 
 
 class RecognitionSignals(QObject):
-    completed = Signal(object)
+    completed = Signal(object, object)
 
 
 class RecognitionTask(QRunnable):
-    def __init__(self, recognizer: PriceRecognizer, image: Image.Image, timestamp: datetime) -> None:
+    def __init__(self, recognizer: PriceRecognizer, frame: CaptureFrame) -> None:
         super().__init__()
         self.recognizer = recognizer
-        self.image = image.copy()
-        self.timestamp = timestamp
+        self.frame = CaptureFrame(frame.image.copy(), frame.source, frame.timestamp)
         self.signals = RecognitionSignals()
 
     def run(self) -> None:
-        self.signals.completed.emit(self.recognizer.recognize(self.image, self.timestamp))
+        self.signals.completed.emit(self.recognizer.recognize(self.frame.image, self.frame.timestamp), self.frame)
 
 
 class AnalyzerPage(QWidget):
-    """Compact trading panel. The existing ten listing inputs live in a collapsed editor."""
+    """Compact price panel mirroring the request row and the first ten market lots."""
 
     calculation_updated = Signal(object, object, int)
     start_requested = Signal()
@@ -80,11 +79,12 @@ class AnalyzerPage(QWidget):
         self.last_result = None
         self.selected_window: WindowInfo | None = None
         self.commission = self._load_commission()
+        self._last_recognition_signature: tuple[str | None, tuple[str | None, ...]] | None = None
         root = QVBoxLayout(self)
         root.setContentsMargins(9, 8, 9, 8)
-        root.setSpacing(5)
+        root.setSpacing(6)
         header = QHBoxLayout()
-        header.addWidget(QLabel("TRADE AGENT", objectName="sectionTitle"))
+        header.addWidget(QLabel("АНАЛИЗ РЫНКА", objectName="sectionTitle"))
         self.recognition_status = QLabel("ГОТОВО", objectName="statusChip")
         self.recognition_status.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         header.addWidget(self.recognition_status, 1)
@@ -92,7 +92,8 @@ class AnalyzerPage(QWidget):
 
         self.item_name = QLineEdit("Распознанный предмет")
         self.request_price = QLineEdit()
-        self.request_price.setPlaceholderText("Цена запроса")
+        self.request_price.setObjectName("requestPrice")
+        self.request_price.setPlaceholderText("—")
         self.quantity = QSpinBox()
         self.quantity.setRange(1, 99999)
         self.quantity.setValue(1)
@@ -101,27 +102,57 @@ class AnalyzerPage(QWidget):
         self.profit_value = QLabel("—", objectName="neutralValue")
         self.total_value = QLabel("—", objectName="value")
         self.commission_value = QLabel(self._commission_text(), objectName="value")
-        summary = QHBoxLayout()
-        summary.setSpacing(6)
-        item_result = QVBoxLayout()
-        item_result.addWidget(QLabel("ПРИБЫЛЬ / ШТ.", objectName="subtle"))
-        item_result.addWidget(self.profit_value)
-        total_result = QVBoxLayout()
-        total_result.addWidget(QLabel("ОЖИДАЕМЫЙ ИТОГ", objectName="subtle"))
-        total_result.addWidget(self.total_value)
-        summary.addLayout(item_result, 1)
-        summary.addLayout(total_result, 1)
-        root.addLayout(summary)
+        order_panel = QWidget(objectName="orderPanel")
+        order = QHBoxLayout(order_panel)
+        order.setContentsMargins(7, 5, 7, 5)
+        order.setSpacing(8)
+        order_text = QVBoxLayout()
+        order_text.setSpacing(0)
+        order_text.addWidget(QLabel("ЦЕНА ЗАКАЗА", objectName="orderCaption"))
+        order_text.addWidget(QLabel("рядом с кнопкой «ЗАКАЗАТЬ»", objectName="subtle"))
+        order.addLayout(order_text, 1)
+        order.addWidget(self.request_price)
+        order.addWidget(QLabel("G", objectName="currency"))
+        root.addWidget(order_panel)
 
-        fields = QGridLayout()
-        fields.setHorizontalSpacing(10)
-        fields.setVerticalSpacing(5)
-        self._add_field(fields, 0, 0, "ЗАПРОС", self.request_price)
-        self._add_field(fields, 0, 1, "СРЕДНЕЕ / 10", self.average_value)
-        self._add_field(fields, 1, 0, "КОМИССИЯ", self.commission_value)
-        self._add_field(fields, 1, 1, "ЧИСТАЯ ПРОДАЖА", self.net_value)
-        self._add_field(fields, 2, 0, "КОЛИЧЕСТВО", self.quantity)
-        root.addLayout(fields)
+        lots_panel = QWidget(objectName="lotsPanel")
+        lots = QVBoxLayout(lots_panel)
+        lots.setContentsMargins(7, 5, 7, 5)
+        lots.setSpacing(2)
+        lots_header = QHBoxLayout()
+        lots_header.addWidget(QLabel("ПЕРВЫЕ 10 ЛОТОВ", objectName="lotsCaption"))
+        lots_header.addStretch()
+        lots_header.addWidget(QLabel("ЦЕНА", objectName="lotsCaption"))
+        lots.addLayout(lots_header)
+        self.listing_prices: list[QLineEdit] = []
+        for index in range(10):
+            row = QWidget(objectName="lotRow")
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(3, 1, 3, 1)
+            row_layout.setSpacing(7)
+            row_layout.addWidget(QLabel(f"ЛОТ {index + 1:02}", objectName="lotLabel"))
+            row_layout.addStretch()
+            field = QLineEdit()
+            field.setObjectName("listingPrice")
+            field.setPlaceholderText("—")
+            field.setMaximumWidth(118)
+            self.listing_prices.append(field)
+            row_layout.addWidget(field)
+            row_layout.addWidget(QLabel("G", objectName="currency"))
+            lots.addWidget(row)
+            field.editingFinished.connect(self.calculate)
+        root.addWidget(lots_panel)
+
+        summary = QGridLayout()
+        summary.setHorizontalSpacing(8)
+        summary.setVerticalSpacing(2)
+        self._add_field(summary, 0, 0, "СРЕДНЕЕ / 10", self.average_value)
+        self._add_field(summary, 0, 1, "ЧИСТАЯ ПРОДАЖА", self.net_value)
+        self._add_field(summary, 1, 0, "ПРИБЫЛЬ / ШТ.", self.profit_value)
+        self._add_field(summary, 1, 1, "ИТОГ", self.total_value)
+        self._add_field(summary, 2, 0, "КОМИССИЯ", self.commission_value)
+        self._add_field(summary, 2, 1, "КОЛИЧЕСТВО", self.quantity)
+        root.addLayout(summary)
 
         hwnd_row = QHBoxLayout()
         self.hwnd_value = QLabel("HWND —", objectName="hwndValue")
@@ -138,37 +169,18 @@ class AnalyzerPage(QWidget):
         controls = QHBoxLayout()
         self.stop_button = QPushButton("СТОП")
         self.monitor_button = QPushButton("МОНИТОР")
-        self.edit_listings_button = QPushButton("10 ЦЕН")
         controls.addWidget(self.stop_button)
         controls.addWidget(self.monitor_button)
-        controls.addWidget(self.edit_listings_button)
         root.addLayout(controls)
         self.reason = QLabel("Ожидание 10 достоверных цен.", objectName="statusLine")
         self.reason.setWordWrap(False)
         root.addWidget(self.reason)
-
-        self.listings_editor = QWidget()
-        editor = QGridLayout(self.listings_editor)
-        editor.setContentsMargins(4, 4, 4, 4)
-        self.listing_prices: list[QLineEdit] = []
-        for index in range(10):
-            field = QLineEdit()
-            field.setPlaceholderText(f"#{index + 1}")
-            field.setMaximumWidth(105)
-            self.listing_prices.append(field)
-            editor.addWidget(QLabel(f"{index + 1:02}", objectName="subtle"), index // 5, (index % 5) * 2)
-            editor.addWidget(field, index // 5, (index % 5) * 2 + 1)
-            field.editingFinished.connect(self.calculate)
-        self.listings_editor.setVisible(False)
-        root.addWidget(self.listings_editor)
         self.item_name.setVisible(False)
-        root.addStretch(1)
 
         self.start_button.clicked.connect(self.start_requested)
         self.stop_button.clicked.connect(self.stop_requested)
         self.get_hwnd_button.clicked.connect(self.hwnd_requested)
         self.monitor_button.clicked.connect(self.monitor_requested)
-        self.edit_listings_button.clicked.connect(self._toggle_listings)
         self.request_price.editingFinished.connect(self.calculate)
         self.quantity.valueChanged.connect(self.calculate)
 
@@ -186,11 +198,6 @@ class AnalyzerPage(QWidget):
     def _commission_text(self) -> str:
         return f"{(self.commission * 100).normalize():f}%"
 
-    def _toggle_listings(self) -> None:
-        visible = not self.listings_editor.isVisible()
-        self.listings_editor.setVisible(visible)
-        self.edit_listings_button.setText("СКРЫТЬ ЦЕНЫ" if visible else "10 ЦЕН")
-
     def set_commission_percent(self, percent: Decimal) -> None:
         self.commission = percent / Decimal("100")
         self.commission_value.setText(self._commission_text())
@@ -203,7 +210,27 @@ class AnalyzerPage(QWidget):
         self.selected_window = window
         self.hwnd_value.setText(f"HWND 0x{window.hwnd:X}")
 
-    def apply_recognition(self, request: PriceReading | None, listings: list[PriceReading], ocr_message: str) -> None:
+    @staticmethod
+    def _recognized_values_signature(
+        request: PriceReading | None, listings: list[PriceReading],
+    ) -> tuple[str | None, tuple[str | None, ...]]:
+        request_value = str(request.parsed_value) if request and request.parsed_value is not None else None
+        listing_values = tuple(
+            str(reading.parsed_value) if reading.parsed_value is not None else None
+            for reading in listings[:MarketAnalyzer.LISTING_COUNT]
+        )
+        return request_value, listing_values
+
+    def apply_recognition(self, request: PriceReading | None, listings: list[PriceReading], ocr_message: str) -> bool:
+        if request is None and not listings:
+            if self._last_recognition_signature is None:
+                self.set_capture_status("Цены не найдены")
+                self.reason.setText(f"{ocr_message} Достоверные цены не найдены.")
+            return False
+        signature = self._recognized_values_signature(request, listings)
+        if signature == self._last_recognition_signature:
+            return False
+        self._last_recognition_signature = signature
         if request and request.parsed_value is not None:
             self.request_price.setText(str(request.parsed_value))
         for index, field in enumerate(self.listing_prices):
@@ -211,6 +238,7 @@ class AnalyzerPage(QWidget):
         self.set_capture_status(f"OCR • {len(listings)}/10 цен")
         self.reason.setText(ocr_message if listings else f"{ocr_message} Достоверные цены не найдены.")
         self.calculate()
+        return True
 
     def calculate(self) -> None:
         snapshot = self.analyzer.create_snapshot(
@@ -519,13 +547,13 @@ class SettingsPage(QWidget):
 
 class MainWindow(QMainWindow):
     TAB_NAMES = ("Анализ", "Продажа", "Оборот", "Монитор", "История", "Настройки")
-    COMPACT_UI_VERSION = 2
+    COMPACT_UI_VERSION = 3
 
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Trade Agent")
-        self.setMinimumSize(390, 320)
-        self.resize(430, 360)
+        self.setMinimumSize(420, 500)
+        self.resize(470, 560)
         app_data = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))) / "TradeAgent"
         self.database = Database(app_data / "trade_agent.sqlite3")
         self.reliability = ReliabilityManager()
@@ -542,6 +570,7 @@ class MainWindow(QMainWindow):
         self.last_frame: CaptureFrame | None = None
         self.current_fps: float | None = None
         self.recognition_busy = False
+        self.recognition_pending = False
         self.thread_pool = QThreadPool.globalInstance()
         self.overlay = CompactOverlay()
         self.overlay.stop_requested.connect(self.emergency_stop)
@@ -554,19 +583,22 @@ class MainWindow(QMainWindow):
     def _build_ui(self) -> None:
         root_widget = QWidget()
         root = QVBoxLayout(root_widget)
-        root.setContentsMargins(6, 6, 6, 6)
+        root.setContentsMargins(5, 6, 5, 6)
         root.setSpacing(6)
         nav = QWidget(objectName="topNav")
         nav_layout = QHBoxLayout(nav)
-        nav_layout.setContentsMargins(5, 3, 5, 3)
-        nav_layout.setSpacing(4)
+        nav_layout.setContentsMargins(3, 2, 3, 2)
+        nav_layout.setSpacing(2)
         self.tabs = QTabBar()
-        self.tabs.setExpanding(True)
+        self.tabs.setExpanding(False)
         self.tabs.setDrawBase(False)
+        self.tabs.setUsesScrollButtons(False)
         for name in self.TAB_NAMES:
             self.tabs.addTab(name)
         nav_layout.addWidget(self.tabs, 1)
-        self.always_on_top = QCheckBox("⇧")
+        self.always_on_top = QPushButton("↑", objectName="alwaysOnTop")
+        self.always_on_top.setCheckable(True)
+        self.always_on_top.setFixedWidth(18)
         self.always_on_top.setToolTip("Поверх всех окон")
         nav_layout.addWidget(self.always_on_top)
         root.addWidget(nav)
@@ -650,6 +682,7 @@ class MainWindow(QMainWindow):
             return
         interval = int(self.database.get_setting("capture_interval_ms", 350))
         self.capture_worker = CaptureWorker(self.provider, window, interval)
+        self.recognition_pending = False
         self.capture_worker.frame_captured.connect(self._frame_received)
         self.capture_worker.capture_error.connect(self._capture_error)
         self.capture_worker.status_changed.connect(self._capture_status)
@@ -696,31 +729,38 @@ class MainWindow(QMainWindow):
         self.last_frame = frame
         self.reliability.record_success(frame.timestamp)
         self.capture_page.set_frame(frame, self.current_fps)
-        self.market_page.set_capture_status("Кадр получен • OCR в очереди")
-        if self.capture_page.auto_analyze.isChecked() and not self.recognition_busy:
-            self.analyze_current_frame()
+        if not self.capture_page.auto_analyze.isChecked():
+            self.market_page.set_capture_status("Кадр изменился • авто-OCR выключен")
+        elif self.recognition_busy:
+            self.recognition_pending = True
+        else:
+            self.analyze_current_frame(frame)
 
-    def analyze_current_frame(self) -> None:
-        if self.last_frame is None:
+    def analyze_current_frame(self, frame: CaptureFrame | None = None) -> None:
+        frame = frame or self.last_frame
+        if frame is None:
             self.capture_page.set_status("Нет кадра для OCR")
             return
         if self.recognition_busy:
             return
         self.recognition_busy = True
-        task = RecognitionTask(self.recognizer, self.last_frame.image, self.last_frame.timestamp)
+        task = RecognitionTask(self.recognizer, frame)
         task.signals.completed.connect(self._recognition_completed)
         self.thread_pool.start(task)
         self.market_page.set_capture_status("Анализ • локальный OCR")
 
-    def _recognition_completed(self, result: RecognitionResult) -> None:
+    def _recognition_completed(self, result: RecognitionResult, frame: CaptureFrame) -> None:
         self.recognition_busy = False
-        if self.last_frame is None:
-            return
-        self.capture_page.set_annotated(self._annotate(self.last_frame.image, result), result)
-        request, listings = self.extractor.extract(result, self.last_frame.source.width)
+        request, listings = self.extractor.extract(result, frame.source.width)
         message = result.error or ("Локальный OCR завершён" if result.ocr_available else "Локальный OCR недоступен")
-        self.market_page.apply_recognition(request, listings, message)
-        self.capture_page.set_status("Захват • OCR обновлён" if self.capture_worker else "Остановлено • OCR обновлён")
+        if self.market_page.apply_recognition(request, listings, message):
+            self.capture_page.set_annotated(self._annotate(frame.image, result), result)
+            self.capture_page.set_status("Захват • цены обновлены" if self.capture_worker else "Остановлено • цены обновлены")
+        if self.recognition_pending and self.last_frame is not None and self.last_frame.timestamp != frame.timestamp:
+            self.recognition_pending = False
+            self.analyze_current_frame(self.last_frame)
+        else:
+            self.recognition_pending = False
 
     @staticmethod
     def _annotate(image: Image.Image, result: RecognitionResult) -> Image.Image:

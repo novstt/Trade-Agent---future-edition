@@ -12,8 +12,12 @@ def test_compact_window_starts_on_analyzer_and_keeps_all_tabs(qtbot, monkeypatch
     assert [window.tabs.tabText(index) for index in range(window.tabs.count())] == [
         "Анализ", "Продажа", "Оборот", "Монитор", "История", "Настройки"
     ]
-    assert 390 <= window.width() <= 430
-    assert 320 <= window.height() <= 360
+    assert 420 <= window.width() <= 470
+    assert 500 <= window.height() <= 560
+    assert not window.tabs.usesScrollButtons()
+    assert sum(window.tabs.tabRect(index).width() for index in range(window.tabs.count())) <= window.tabs.width()
+    assert len(window.market_page.listing_prices) == 10
+    assert all(field.isVisible() for field in window.market_page.listing_prices)
     for index in range(window.tabs.count()):
         window.tabs.setCurrentIndex(index)
         assert window.pages.currentIndex() == index

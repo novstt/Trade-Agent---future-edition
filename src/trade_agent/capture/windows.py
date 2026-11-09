@@ -11,6 +11,7 @@ from typing import Protocol
 from PIL import Image
 from PySide6.QtCore import QThread, Signal
 
+from trade_agent.capture.change_detection import MarketFrameGate
 from trade_agent.core.models import CaptureFrame, WindowInfo
 
 
@@ -223,6 +224,7 @@ class CaptureWorker(QThread):
         self.window = window
         self.interval_seconds = max(interval_ms, 100) / 1000
         self._stopping = False
+        self._market_frame_gate = MarketFrameGate()
 
     def stop(self) -> None:
         self._stopping = True
@@ -241,7 +243,8 @@ class CaptureWorker(QThread):
                 instantaneous = 1 / elapsed
                 rolling_fps = instantaneous if rolling_fps == 0 else (rolling_fps * 0.8) + (instantaneous * 0.2)
                 failures = 0
-                self.frame_captured.emit(frame)
+                if self._market_frame_gate.has_changed(frame.image):
+                    self.frame_captured.emit(frame)
                 self.metrics_changed.emit(rolling_fps, frame.timestamp)
             except Exception as exc:
                 failures += 1

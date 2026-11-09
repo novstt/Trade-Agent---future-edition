@@ -15,12 +15,13 @@ python -m trade_agent
 
 Tesseract is selected automatically from `C:\Program Files\Tesseract-OCR\tesseract.exe` when present, then from `PATH`. If it is unavailable, **Settings** shows a small warning and the application continues without OCR. Install [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) locally for production OCR. The engine is deliberately replaceable through `OcrEngine`.
 
-The app starts directly in a card-style, resizable **Анализ** window (about `430 × 360` on first launch). Its six Russian-language top tabs are Анализ, Продажа, Оборот, Монитор, История, and Настройки. The window remembers its last size, position, and always-on-top preference; F9 remains the emergency stop.
+The app starts directly in a compact, resizable **Анализ** window (about `470 × 560` on first launch). The screen follows the market layout: a distinct **Цена заказа** row and the first ten numbered lots are always visible. Its six Russian-language top tabs are Анализ, Продажа, Оборот, Монитор, История, and Настройки. The window remembers its last size, position, and always-on-top preference; F9 remains the emergency stop.
 
 ## What is implemented
 
 - Windows top-level-window enumeration and real selected-window GDI capture, with a live worker-thread preview, direct decimal or `0x` HWND resolution, DPI-aware sizing, recovery status and F9 global stop.
-- OpenCV region detection, Tesseract word/number OCR, confidence and coordinate reporting, repeated-frame stale detection, and explicit validation states.
+- The capture still polls the selected window, but it forwards a frame to OCR only when the bright request/listing-price area changes. Unrelated animation, a cursor, and an unchanged set of prices do not redraw the panel or create duplicate history rows.
+- OpenCV region detection, Tesseract word/number OCR, confidence and coordinate reporting, and explicit validation states. Tesseract child processes are created without a visible console window.
 - Request-price selection bound to a nearby `ЗАКАЗАТЬ` button when it is recognised; a position-only fallback is used when that button is absent.
 - Decimal market logic that requires ten valid listing prices before an average is considered complete. Existing `Cancel` listings are included when their prices are recognised.
 - Separate local inventory/sticker workflow, de-duplication and session streak tracking.
