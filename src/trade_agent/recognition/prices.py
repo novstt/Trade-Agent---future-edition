@@ -12,6 +12,7 @@ from PIL import Image
 
 from trade_agent.core.models import BoundingBox, PriceReading, ValidationStatus
 from trade_agent.recognition.engine import OcrEngine, OcrToken
+from trade_agent.recognition.market_zones import MarketPriceZones, PriceZone
 from trade_agent.recognition.regions import DetectedRegion, RegionDetector
 
 
@@ -51,9 +52,17 @@ class PriceRecognizer:
 
     def recognize(self, image: Image.Image, timestamp: Optional[datetime] = None) -> RecognitionResult:
         timestamp = timestamp or datetime.now(timezone.utc)
-        regions = self.region_detector.detect(image)
+        zones = MarketPriceZones.zones_for(image)
+        crops = [(zone, MarketPriceZones.crop(image, zone)) for zone in zones]
+        regions = [
+            self._offset_region(region, zone)
+            for zone, crop in crops
+            for region in self.region_detector.detect(crop)
+        ]
         rows = self.region_detector.group_rows(regions)
-        signature = hashlib.blake2b(np.asarray(image.convert("L")).tobytes(), digest_size=12).hexdigest()
+        signature = hashlib.blake2b(
+            b"".join(np.asarray(crop.convert("L")).tobytes() for _, crop in crops), digest_size=12,
+        ).hexdigest()
         if signature != self._last_signature:
             self._last_signature, self._last_change_at = signature, timestamp
         is_stale = self._last_change_at is not None and (timestamp - self._last_change_at).total_seconds() > 4
@@ -61,12 +70,28 @@ class PriceRecognizer:
         if not self.engine.is_available:
             return RecognitionResult((), tuple(regions), tuple(tuple(row) for row in rows), False, "Локальный OCR-движок недоступен.")
         try:
-            tokens = self.engine.read_tokens(image)
+            tokens = [
+                self._offset_token(token, zone)
+                for zone, crop in crops
+                for token in self.engine.read_tokens(crop)
+            ]
         except Exception as exc:
             return RecognitionResult((), tuple(regions), tuple(tuple(row) for row in rows), True, str(exc))
 
         readings = tuple(self._reading_from_token(token, timestamp, is_stale) for token in tokens if self.parse_price(token.text) is not None)
         return RecognitionResult(readings, tuple(regions), tuple(tuple(row) for row in rows), True, tokens=tuple(tokens))
+
+    @staticmethod
+    def _offset_token(token: OcrToken, zone: PriceZone) -> OcrToken:
+        box = token.bounding_box
+        origin = zone.bounding_box
+        return OcrToken(token.text, token.confidence, BoundingBox(origin.x + box.x, origin.y + box.y, box.width, box.height))
+
+    @staticmethod
+    def _offset_region(region: DetectedRegion, zone: PriceZone) -> DetectedRegion:
+        box = region.bounding_box
+        origin = zone.bounding_box
+        return DetectedRegion(BoundingBox(origin.x + box.x, origin.y + box.y, box.width, box.height), region.score)
 
     def _reading_from_token(self, token: OcrToken, timestamp: datetime, is_stale: bool) -> PriceReading:
         value = self.parse_price(token.text)

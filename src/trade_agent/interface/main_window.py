@@ -766,9 +766,6 @@ class MainWindow(QMainWindow):
     def _annotate(image: Image.Image, result: RecognitionResult) -> Image.Image:
         copy = image.convert("RGBA").copy()
         draw = ImageDraw.Draw(copy)
-        for region in result.regions:
-            box = region.bounding_box
-            draw.rectangle((box.x, box.y, box.right, box.bottom), outline=(125, 80, 215, 210), width=1)
         for reading in result.readings:
             if reading.bounding_box:
                 box = reading.bounding_box

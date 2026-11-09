@@ -87,7 +87,7 @@ class TesseractOcrEngine:
         data = self._pytesseract.image_to_data(
             np.asarray(image.convert("RGB")),
             lang=self.language,
-            config="--oem 3 --psm 6",
+            config="--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789.,",
             output_type=self._pytesseract.Output.DICT,
         )
         tokens: list[OcrToken] = []

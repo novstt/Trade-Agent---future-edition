@@ -22,7 +22,7 @@ The app starts directly in a compact, resizable **Анализ** window (about `
 - Windows top-level-window enumeration and real selected-window GDI capture, with a live worker-thread preview, direct decimal or `0x` HWND resolution, DPI-aware sizing, recovery status and F9 global stop.
 - The capture still polls the selected window, but it forwards a frame to OCR only when the bright request/listing-price area changes. Unrelated animation, a cursor, and an unchanged set of prices do not redraw the panel or create duplicate history rows.
 - OpenCV region detection, Tesseract word/number OCR, confidence and coordinate reporting, and explicit validation states. Tesseract child processes are created without a visible console window.
-- Request-price selection bound to a nearby `ЗАКАЗАТЬ` button when it is recognised; a position-only fallback is used when that button is absent.
+- Market OCR is limited to the separate request-price strip and first-ten-listings price strip. Item names, avatars, emulator controls, offer counts and buttons are excluded before Tesseract runs; an optional nearby `ЗАКАЗАТЬ` anchor remains supported as an extra check.
 - Decimal market logic that requires ten valid listing prices before an average is considered complete. Existing `Cancel` listings are included when their prices are recognised.
 - Separate local inventory/sticker workflow, de-duplication and session streak tracking.
 - SQLite schema migrations, history, compact overlay, and a dark compact PySide6 UI with persistent top navigation.
