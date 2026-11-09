@@ -50,6 +50,12 @@ class PriceRecognizer:
             return None
         return value if value >= 0 else None
 
+    @staticmethod
+    def is_ocr_price(raw_text: str) -> bool:
+        """Market OCR may only accept explicitly decimal values; never infer a separator."""
+        cleaned = raw_text.replace(" ", "").replace("G", "").replace("g", "")
+        return re.fullmatch(r"[0-9]{1,7}[.,][0-9]{1,4}", cleaned) is not None
+
     def recognize(self, image: Image.Image, timestamp: Optional[datetime] = None) -> RecognitionResult:
         timestamp = timestamp or datetime.now(timezone.utc)
         zones = MarketPriceZones.zones_for(image)
@@ -78,7 +84,7 @@ class PriceRecognizer:
         except Exception as exc:
             return RecognitionResult((), tuple(regions), tuple(tuple(row) for row in rows), True, str(exc))
 
-        readings = tuple(self._reading_from_token(token, timestamp, is_stale) for token in tokens if self.parse_price(token.text) is not None)
+        readings = tuple(self._reading_from_token(token, timestamp, is_stale) for token in tokens if self.is_ocr_price(token.text))
         return RecognitionResult(readings, tuple(regions), tuple(tuple(row) for row in rows), True, tokens=tuple(tokens))
 
     @staticmethod

@@ -27,6 +27,10 @@ class FakeEngine:
 def test_price_parser_normalizes_decimal_separator_and_currency() -> None:
     assert PriceRecognizer.parse_price("20,00 G") == Decimal("20.00")
     assert PriceRecognizer.parse_price("no price") is None
+    assert PriceRecognizer.is_ocr_price("20,00G")
+    assert PriceRecognizer.is_ocr_price("20.69")
+    assert not PriceRecognizer.is_ocr_price("1731")
+    assert not PriceRecognizer.is_ocr_price("20796")
 
 
 def test_recognizer_keeps_low_confidence_separate_from_valid() -> None:

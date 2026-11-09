@@ -222,22 +222,27 @@ class AnalyzerPage(QWidget):
         return request_value, listing_values
 
     def apply_recognition(self, request: PriceReading | None, listings: list[PriceReading], ocr_message: str) -> bool:
-        if request is None and not listings:
+        valid_request = request if request and request.validation_status is ValidationStatus.VALID else None
+        first_ten = listings[:MarketAnalyzer.LISTING_COUNT]
+        if valid_request is None or len(first_ten) != MarketAnalyzer.LISTING_COUNT or any(
+            reading.validation_status is not ValidationStatus.VALID for reading in first_ten
+        ):
             if self._last_recognition_signature is None:
-                self.set_capture_status("Цены не найдены")
-                self.reason.setText(f"{ocr_message} Достоверные цены не найдены.")
+                self.set_capture_status("Ожидание точных цен")
+                self.reason.setText("Результат OCR не принят: нужны цена заказа и 10 достоверных цен.")
             return False
-        signature = self._recognized_values_signature(request, listings)
+        signature = self._recognized_values_signature(valid_request, first_ten)
         if signature == self._last_recognition_signature:
             return False
         self._last_recognition_signature = signature
-        if request and request.parsed_value is not None:
-            self.request_price.setText(str(request.parsed_value))
+        self.request_price.setText(str(valid_request.parsed_value))
         for index, field in enumerate(self.listing_prices):
-            field.setText(str(listings[index].parsed_value) if index < len(listings) and listings[index].parsed_value is not None else "")
-        self.set_capture_status(f"OCR • {len(listings)}/10 цен")
-        self.reason.setText(ocr_message if listings else f"{ocr_message} Достоверные цены не найдены.")
-        self.calculate()
+            field.setText(str(first_ten[index].parsed_value))
+        self.set_capture_status("OCR • 10/10 цен")
+        self.reason.setText(ocr_message)
+        self._calculate_snapshot(self.analyzer.create_snapshot(
+            self.item_name.text().strip() or "Без названия", valid_request, first_ten,
+        ))
         return True
 
     def calculate(self) -> None:
@@ -245,6 +250,9 @@ class AnalyzerPage(QWidget):
             self.item_name.text().strip() or "Без названия", _reading_from_text(self.request_price.text()),
             [_reading_from_text(field.text()) for field in self.listing_prices],
         )
+        self._calculate_snapshot(snapshot)
+
+    def _calculate_snapshot(self, snapshot) -> None:
         result = self.profit_engine.calculate(snapshot, self.quantity.value(), Decimal("5.00"), self.commission)
         self.last_result = result
         self.average_value.setText(_money(result.average_price))
