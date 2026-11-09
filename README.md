@@ -19,7 +19,7 @@ The app starts directly in a card-style, resizable **Analyzer** window (about `4
 
 ## What is implemented
 
-- Windows top-level-window enumeration and real selected-window GDI capture, with a live worker-thread preview, saved frames, DPI-aware sizing, recovery status and F9 global stop.
+- Windows top-level-window enumeration and real selected-window GDI capture, with a live worker-thread preview, direct decimal or `0x` HWND resolution, DPI-aware sizing, recovery status and F9 global stop.
 - OpenCV region detection, Tesseract word/number OCR, confidence and coordinate reporting, repeated-frame stale detection, and explicit validation states.
 - Decimal market logic that requires ten valid listing prices before an average is considered complete. Existing `Cancel` listings are included when their prices are recognised.
 - Separate local inventory/sticker workflow, de-duplication and session streak tracking.

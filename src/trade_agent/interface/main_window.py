@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from trade_agent.calculator import DEFAULT_COMMISSION, ProfitEngine
-from trade_agent.capture import CaptureWorker, WindowsCaptureProvider
+from trade_agent.capture import CaptureError, CaptureWorker, WindowsCaptureProvider
 from trade_agent.core.models import CaptureFrame, PriceReading, ReliabilityState, ValidationStatus, WindowInfo
 from trade_agent.interface.hotkey import GlobalF9Hotkey
 from trade_agent.interface.overlay import CompactOverlay
@@ -69,6 +69,8 @@ class AnalyzerPage(QWidget):
     calculation_updated = Signal(object, object, int)
     start_requested = Signal()
     stop_requested = Signal()
+    hwnd_requested = Signal()
+    monitor_requested = Signal()
 
     def __init__(self, database: Database) -> None:
         super().__init__()
@@ -76,6 +78,7 @@ class AnalyzerPage(QWidget):
         self.analyzer = MarketAnalyzer()
         self.profit_engine = ProfitEngine()
         self.last_result = None
+        self.selected_window: WindowInfo | None = None
         self.commission = self._load_commission()
         root = QVBoxLayout(self)
         root.setContentsMargins(9, 8, 9, 8)
@@ -120,13 +123,24 @@ class AnalyzerPage(QWidget):
         self._add_field(fields, 2, 0, "QUANTITY", self.quantity)
         root.addLayout(fields)
 
+        hwnd_row = QHBoxLayout()
+        self.hwnd_value = QLabel("HWND —", objectName="hwndValue")
+        self.get_hwnd_button = QPushButton("ПОЛУЧИТЬ HWND")
+        hwnd_row.addWidget(self.hwnd_value, 1)
+        hwnd_row.addWidget(self.get_hwnd_button)
+        root.addLayout(hwnd_row)
+
+        start_row = QHBoxLayout()
+        self.start_button = QPushButton("ЗАПУСТИТЬ ЗАХВАТ", objectName="primary")
+        start_row.addWidget(self.start_button)
+        root.addLayout(start_row)
+
         controls = QHBoxLayout()
-        self.start_button = QPushButton("Start", objectName="primary")
-        self.stop_button = QPushButton("Stop")
-        self.edit_listings_button = QPushButton("10 prices")
-        controls.addWidget(self.start_button)
+        self.stop_button = QPushButton("СТОП")
+        self.monitor_button = QPushButton("МОНИТОР")
+        self.edit_listings_button = QPushButton("10 ЦЕН")
         controls.addWidget(self.stop_button)
-        controls.addStretch()
+        controls.addWidget(self.monitor_button)
         controls.addWidget(self.edit_listings_button)
         root.addLayout(controls)
         self.reason = QLabel("Waiting for 10 valid listings.", objectName="statusLine")
@@ -152,6 +166,8 @@ class AnalyzerPage(QWidget):
 
         self.start_button.clicked.connect(self.start_requested)
         self.stop_button.clicked.connect(self.stop_requested)
+        self.get_hwnd_button.clicked.connect(self.hwnd_requested)
+        self.monitor_button.clicked.connect(self.monitor_requested)
         self.edit_listings_button.clicked.connect(self._toggle_listings)
         self.request_price.editingFinished.connect(self.calculate)
         self.quantity.valueChanged.connect(self.calculate)
@@ -173,7 +189,7 @@ class AnalyzerPage(QWidget):
     def _toggle_listings(self) -> None:
         visible = not self.listings_editor.isVisible()
         self.listings_editor.setVisible(visible)
-        self.edit_listings_button.setText("Hide prices" if visible else "10 prices")
+        self.edit_listings_button.setText("СКРЫТЬ ЦЕНЫ" if visible else "10 ЦЕН")
 
     def set_commission_percent(self, percent: Decimal) -> None:
         self.commission = percent / Decimal("100")
@@ -182,6 +198,10 @@ class AnalyzerPage(QWidget):
 
     def set_capture_status(self, text: str) -> None:
         self.recognition_status.setText(text)
+
+    def set_hwnd(self, window: WindowInfo) -> None:
+        self.selected_window = window
+        self.hwnd_value.setText(f"HWND 0x{window.hwnd:X}")
 
     def apply_recognition(self, request: PriceReading | None, listings: list[PriceReading], ocr_message: str) -> None:
         if request and request.parsed_value is not None:
@@ -218,6 +238,7 @@ class CaptureMonitorPage(QWidget):
     start_requested = Signal(object)
     stop_requested = Signal()
     analyze_requested = Signal()
+    hwnd_ready = Signal(object)
 
     def __init__(self, provider: WindowsCaptureProvider | None) -> None:
         super().__init__()
@@ -236,6 +257,15 @@ class CaptureMonitorPage(QWidget):
         top.addWidget(self.start_button)
         top.addWidget(self.stop_button)
         root.addLayout(top)
+        hwnd_row = QHBoxLayout()
+        self.hwnd_input = QLineEdit()
+        self.hwnd_input.setPlaceholderText("HWND / 0x…")
+        self.get_hwnd_button = QPushButton("Получить")
+        self.use_hwnd_button = QPushButton("Захват по HWND", objectName="primary")
+        hwnd_row.addWidget(self.hwnd_input, 1)
+        hwnd_row.addWidget(self.get_hwnd_button)
+        hwnd_row.addWidget(self.use_hwnd_button)
+        root.addLayout(hwnd_row)
         options = QHBoxLayout()
         self.auto_analyze = QCheckBox("Auto OCR")
         self.auto_analyze.setChecked(True)
@@ -260,7 +290,10 @@ class CaptureMonitorPage(QWidget):
         self.refresh_button.clicked.connect(self.refresh_windows)
         self.start_button.clicked.connect(self._start)
         self.stop_button.clicked.connect(self.stop_requested)
+        self.get_hwnd_button.clicked.connect(self.get_selected_hwnd)
+        self.use_hwnd_button.clicked.connect(self._start_from_hwnd)
         self.analyze_button.clicked.connect(self.analyze_requested)
+        self.window_combo.currentIndexChanged.connect(self.get_selected_hwnd)
         self.refresh_windows()
 
     def refresh_windows(self) -> None:
@@ -276,11 +309,38 @@ class CaptureMonitorPage(QWidget):
             self.set_status(f"Error • {exc}")
 
     def _start(self) -> None:
-        window = self.window_combo.currentData()
+        window = self.selected_window()
         if isinstance(window, WindowInfo):
+            self.hwnd_ready.emit(window)
             self.start_requested.emit(window)
         else:
             self.set_status("Select a visible window first")
+
+    def selected_window(self) -> WindowInfo | None:
+        window = self.window_combo.currentData()
+        return window if isinstance(window, WindowInfo) else None
+
+    def get_selected_hwnd(self) -> WindowInfo | None:
+        window = self.selected_window()
+        if window is None:
+            self.set_status("Select a visible window first")
+            return None
+        self.hwnd_input.setText(f"0x{window.hwnd:X}")
+        self.hwnd_ready.emit(window)
+        self.set_status(f"HWND received • 0x{window.hwnd:X}")
+        return window
+
+    def _start_from_hwnd(self) -> None:
+        if self.provider is None:
+            self.set_status("Windows capture unavailable")
+            return
+        try:
+            window = self.provider.get_window_info(self.hwnd_input.text())
+        except CaptureError as exc:
+            self.set_status(f"HWND error • {exc}")
+            return
+        self.hwnd_ready.emit(window)
+        self.start_requested.emit(window)
 
     def set_frame(self, frame: CaptureFrame, fps: float | None = None) -> None:
         self.last_image = frame.image
@@ -526,10 +586,13 @@ class MainWindow(QMainWindow):
         self.always_on_top.toggled.connect(self._apply_always_on_top)
         self.market_page.start_requested.connect(self._start_from_monitor_selection)
         self.market_page.stop_requested.connect(self.stop_capture)
+        self.market_page.hwnd_requested.connect(self._get_selected_hwnd)
+        self.market_page.monitor_requested.connect(lambda: self.tabs.setCurrentIndex(3))
         self.market_page.calculation_updated.connect(self._calculation_updated)
         self.capture_page.start_requested.connect(self.start_capture)
         self.capture_page.stop_requested.connect(self.stop_capture)
         self.capture_page.analyze_requested.connect(self.analyze_current_frame)
+        self.capture_page.hwnd_ready.connect(self.market_page.set_hwnd)
         self.capture_page.show_overlay.toggled.connect(self.overlay.setVisible)
         self.sell_page.analyse_button.clicked.connect(lambda: self.sell_page.analyze_image(self.last_frame.image if self.last_frame else None))
         self.sell_page.session_changed.connect(self._inventory_changed)
@@ -554,12 +617,30 @@ class MainWindow(QMainWindow):
             self.history_page.refresh()
 
     def _start_from_monitor_selection(self) -> None:
-        window = self.capture_page.window_combo.currentData()
+        if self.provider is None:
+            self.market_page.set_capture_status("Capture unavailable")
+            return
+        if self.market_page.selected_window is not None:
+            try:
+                self.start_capture(self.provider.get_window_info(self.market_page.selected_window.hwnd))
+            except CaptureError as exc:
+                self.market_page.set_capture_status(f"HWND error • {exc}")
+            return
+        window = self.capture_page.get_selected_hwnd()
         if isinstance(window, WindowInfo):
             self.start_capture(window)
         else:
             self.market_page.set_capture_status("Select source in Monitor")
             self.tabs.setCurrentIndex(3)
+
+    def _get_selected_hwnd(self) -> None:
+        window = self.capture_page.get_selected_hwnd()
+        if window is None:
+            self.market_page.set_capture_status("Select source in Monitor")
+            self.tabs.setCurrentIndex(3)
+        else:
+            self.market_page.set_hwnd(window)
+            self.market_page.set_capture_status("HWND ready")
 
     def start_capture(self, window: WindowInfo) -> None:
         self.stop_capture()

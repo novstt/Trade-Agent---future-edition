@@ -10,6 +10,7 @@ QLabel#profit { color: #57de9a; font-size: 15px; font-weight: 800; }
 QLabel#loss { color: #ff747f; font-size: 15px; font-weight: 800; }
 QLabel#statusChip { color: #deb66a; background: #2a2317; border-radius: 4px; padding: 3px 5px; font-size: 9px; font-weight: 700; }
 QLabel#statusLine { color: #8f919a; background: #17181e; border: 1px solid #292b33; border-radius: 4px; padding: 4px 5px; }
+QLabel#hwndValue { color: #c8c6d0; background: #17181e; border: 1px solid #292b33; border-radius: 4px; padding: 5px 6px; font-size: 10px; font-weight: 700; }
 QLabel#capturePreview { background: #0b0b11; border: 1px solid #2d2938; border-radius: 7px; color: #878392; }
 QTabBar::tab { background: transparent; color: #9b9da5; border: 0; border-radius: 4px; padding: 4px 3px; margin: 0; font-size: 9px; font-weight: 650; }
 QTabBar::tab:selected { background: #563585; color: white; }

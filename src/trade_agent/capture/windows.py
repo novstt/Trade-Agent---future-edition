@@ -18,8 +18,21 @@ class CaptureError(RuntimeError):
     pass
 
 
+def parse_hwnd(value: int | str) -> int:
+    """Parse a decimal or `0x` HWND without accepting invalid or null handles."""
+    try:
+        text = str(value).strip()
+        hwnd = int(text, 16) if text.casefold().startswith("0x") else int(text, 10)
+    except (TypeError, ValueError) as exc:
+        raise CaptureError("HWND must be a decimal number or a value beginning with 0x.") from exc
+    if hwnd <= 0:
+        raise CaptureError("HWND must be greater than zero.")
+    return hwnd
+
+
 class ScreenCaptureProvider(Protocol):
     def enumerate_windows(self) -> list[WindowInfo]: ...
+    def get_window_info(self, hwnd: int | str) -> WindowInfo: ...
     def capture(self, window: WindowInfo) -> CaptureFrame: ...
 
 
@@ -77,22 +90,35 @@ class WindowsCaptureProvider:
         def visitor(hwnd: int, _: int) -> bool:
             if not user32.IsWindowVisible(hwnd):
                 return True
-            length = user32.GetWindowTextLengthW(hwnd)
-            if length == 0:
+            try:
+                window = self.get_window_info(int(hwnd))
+            except CaptureError:
                 return True
-            title = ctypes.create_unicode_buffer(length + 1)
-            user32.GetWindowTextW(hwnd, title, len(title))
-            rect = wintypes.RECT()
-            if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-                return True
-            width, height = rect.right - rect.left, rect.bottom - rect.top
-            if width > 1 and height > 1:
-                windows.append(WindowInfo(int(hwnd), title.value.strip(), width, height))
+            if window.title and window.width > 1 and window.height > 1:
+                windows.append(window)
             return True
 
         if not user32.EnumWindows(visitor, 0):
             raise CaptureError(f"EnumWindows failed: {ctypes.get_last_error()}")
         return sorted(windows, key=lambda entry: entry.title.casefold())
+
+    def get_window_info(self, hwnd: int | str) -> WindowInfo:
+        """Resolve one live top-level window from its HWND for direct capture."""
+        handle_value = parse_hwnd(hwnd)
+        handle = wintypes.HWND(handle_value)
+        if not user32.IsWindow(handle):
+            raise CaptureError("HWND does not identify a current window.")
+        length = user32.GetWindowTextLengthW(handle)
+        title_buffer = ctypes.create_unicode_buffer(max(length + 1, 2))
+        user32.GetWindowTextW(handle, title_buffer, len(title_buffer))
+        rect = wintypes.RECT()
+        if not user32.GetWindowRect(handle, ctypes.byref(rect)):
+            raise CaptureError(f"Could not read HWND dimensions: {ctypes.get_last_error()}")
+        width, height = rect.right - rect.left, rect.bottom - rect.top
+        if width <= 1 or height <= 1:
+            raise CaptureError("HWND has no capturable area.")
+        title = title_buffer.value.strip() or f"HWND 0x{handle_value:X}"
+        return WindowInfo(handle_value, title, width, height)
 
     def capture(self, window: WindowInfo) -> CaptureFrame:
         hwnd = wintypes.HWND(window.hwnd)
@@ -151,6 +177,9 @@ class WindowsGraphicsCaptureProvider:
 
     def enumerate_windows(self) -> list[WindowInfo]:
         return WindowsCaptureProvider().enumerate_windows()
+
+    def get_window_info(self, hwnd: int | str) -> WindowInfo:
+        return WindowsCaptureProvider().get_window_info(hwnd)
 
     def capture(self, window: WindowInfo) -> CaptureFrame:
         raise CaptureError("Windows Graphics Capture provider is not installed; select Win32 GDI capture.")
