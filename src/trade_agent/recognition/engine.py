@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 import numpy as np
@@ -25,10 +27,17 @@ class OcrEngine(Protocol):
 class TesseractOcrEngine:
     """Local Tesseract bridge; importing it does not require a cloud service or API key."""
 
-    def __init__(self) -> None:
+    DEFAULT_WINDOWS_PATH = Path(r"C:\Program Files\Tesseract-OCR\tesseract.exe")
+
+    def __init__(self, executable: Path | None = None) -> None:
+        requested = executable or self.DEFAULT_WINDOWS_PATH
+        found = requested if requested.is_file() else shutil.which("tesseract.exe") or shutil.which("tesseract")
+        self.executable_path = str(found or requested)
         try:
             import pytesseract
             self._pytesseract = pytesseract
+            if found:
+                self._pytesseract.pytesseract.tesseract_cmd = str(found)
             self._available = True
         except Exception:
             self._pytesseract = None

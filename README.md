@@ -13,7 +13,9 @@ python -m pip install -e ".[dev]"
 python -m trade_agent
 ```
 
-Tesseract is selected automatically when its Windows executable is installed and on `PATH`; otherwise the UI remains usable and reports that OCR is unavailable. Install [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) locally for production OCR. The engine is deliberately replaceable through `OcrEngine`.
+Tesseract is selected automatically from `C:\Program Files\Tesseract-OCR\tesseract.exe` when present, then from `PATH`. If it is unavailable, **Settings** shows a small warning and the application continues without OCR. Install [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) locally for production OCR. The engine is deliberately replaceable through `OcrEngine`.
+
+The app starts directly in a compact, resizable **Analyzer** window. Its six top tabs are Analyzer, Sell Menu, Turnover, Monitor, History, and Settings. The window remembers its last size, position, and always-on-top preference; F9 remains the emergency stop.
 
 ## What is implemented
 
@@ -21,7 +23,7 @@ Tesseract is selected automatically when its Windows executable is installed and
 - OpenCV region detection, Tesseract word/number OCR, confidence and coordinate reporting, repeated-frame stale detection, and explicit validation states.
 - Decimal market logic that requires ten valid listing prices before an average is considered complete. Existing `Cancel` listings are included when their prices are recognised.
 - Separate local inventory/sticker workflow, de-duplication and session streak tracking.
-- SQLite schema migrations, history, compact overlay, market dashboard and a responsive dark PySide6 UI.
+- SQLite schema migrations, history, compact overlay, and a dark compact PySide6 UI with persistent top navigation.
 
 ## Operational limits
 
