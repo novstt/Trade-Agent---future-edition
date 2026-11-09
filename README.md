@@ -15,7 +15,7 @@ python -m trade_agent
 
 Tesseract is selected automatically from `C:\Program Files\Tesseract-OCR\tesseract.exe` when present, then from `PATH`. If it is unavailable, **Settings** shows a small warning and the application continues without OCR. Install [Tesseract OCR](https://github.com/UB-Mannheim/tesseract/wiki) locally for production OCR. The engine is deliberately replaceable through `OcrEngine`.
 
-The app starts directly in a compact, resizable **Analyzer** window. Its six top tabs are Analyzer, Sell Menu, Turnover, Monitor, History, and Settings. The window remembers its last size, position, and always-on-top preference; F9 remains the emergency stop.
+The app starts directly in a card-style, resizable **Analyzer** window (about `430 × 360` on first launch). Its six top tabs are Analyzer, Sell Menu, Turnover, Monitor, History, and Settings. The window remembers its last size, position, and always-on-top preference; F9 remains the emergency stop.
 
 ## What is implemented
 

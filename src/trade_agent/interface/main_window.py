@@ -78,11 +78,11 @@ class AnalyzerPage(QWidget):
         self.last_result = None
         self.commission = self._load_commission()
         root = QVBoxLayout(self)
-        root.setContentsMargins(14, 12, 14, 12)
-        root.setSpacing(8)
+        root.setContentsMargins(9, 8, 9, 8)
+        root.setSpacing(5)
         header = QHBoxLayout()
-        header.addWidget(QLabel("ANALYZER", objectName="sectionTitle"))
-        self.recognition_status = QLabel("Ready • local OCR", objectName="subtle")
+        header.addWidget(QLabel("TRADE AGENT", objectName="sectionTitle"))
+        self.recognition_status = QLabel("READY", objectName="statusChip")
         self.recognition_status.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         header.addWidget(self.recognition_status, 1)
         root.addLayout(header)
@@ -98,30 +98,39 @@ class AnalyzerPage(QWidget):
         self.profit_value = QLabel("—", objectName="neutralValue")
         self.total_value = QLabel("—", objectName="value")
         self.commission_value = QLabel(self._commission_text(), objectName="value")
+        summary = QHBoxLayout()
+        summary.setSpacing(6)
+        item_result = QVBoxLayout()
+        item_result.addWidget(QLabel("P/L PER ITEM", objectName="subtle"))
+        item_result.addWidget(self.profit_value)
+        total_result = QVBoxLayout()
+        total_result.addWidget(QLabel("EXPECTED TOTAL", objectName="subtle"))
+        total_result.addWidget(self.total_value)
+        summary.addLayout(item_result, 1)
+        summary.addLayout(total_result, 1)
+        root.addLayout(summary)
+
         fields = QGridLayout()
         fields.setHorizontalSpacing(10)
-        fields.setVerticalSpacing(8)
-        self._add_field(fields, 0, 0, "Item", self.item_name)
-        self._add_field(fields, 0, 1, "Request", self.request_price)
-        self._add_field(fields, 1, 0, "Average / 10", self.average_value)
-        self._add_field(fields, 1, 1, "Commission", self.commission_value)
-        self._add_field(fields, 2, 0, "Expected net", self.net_value)
-        self._add_field(fields, 2, 1, "Quantity", self.quantity)
-        self._add_field(fields, 3, 0, "Profit / item", self.profit_value)
-        self._add_field(fields, 3, 1, "Total result", self.total_value)
+        fields.setVerticalSpacing(5)
+        self._add_field(fields, 0, 0, "REQUEST", self.request_price)
+        self._add_field(fields, 0, 1, "AVG / 10", self.average_value)
+        self._add_field(fields, 1, 0, "COMMISSION", self.commission_value)
+        self._add_field(fields, 1, 1, "NET SALE", self.net_value)
+        self._add_field(fields, 2, 0, "QUANTITY", self.quantity)
         root.addLayout(fields)
 
         controls = QHBoxLayout()
         self.start_button = QPushButton("Start", objectName="primary")
         self.stop_button = QPushButton("Stop")
-        self.edit_listings_button = QPushButton("Edit 10 listings")
+        self.edit_listings_button = QPushButton("10 prices")
         controls.addWidget(self.start_button)
         controls.addWidget(self.stop_button)
         controls.addStretch()
         controls.addWidget(self.edit_listings_button)
         root.addLayout(controls)
-        self.reason = QLabel("Waiting for 10 valid listings.", objectName="subtle")
-        self.reason.setWordWrap(True)
+        self.reason = QLabel("Waiting for 10 valid listings.", objectName="statusLine")
+        self.reason.setWordWrap(False)
         root.addWidget(self.reason)
 
         self.listings_editor = QWidget()
@@ -138,6 +147,7 @@ class AnalyzerPage(QWidget):
             field.editingFinished.connect(self.calculate)
         self.listings_editor.setVisible(False)
         root.addWidget(self.listings_editor)
+        self.item_name.setVisible(False)
         root.addStretch(1)
 
         self.start_button.clicked.connect(self.start_requested)
@@ -163,7 +173,7 @@ class AnalyzerPage(QWidget):
     def _toggle_listings(self) -> None:
         visible = not self.listings_editor.isVisible()
         self.listings_editor.setVisible(visible)
-        self.edit_listings_button.setText("Hide listings" if visible else "Edit 10 listings")
+        self.edit_listings_button.setText("Hide prices" if visible else "10 prices")
 
     def set_commission_percent(self, percent: Decimal) -> None:
         self.commission = percent / Decimal("100")
@@ -449,12 +459,13 @@ class SettingsPage(QWidget):
 
 class MainWindow(QMainWindow):
     TAB_NAMES = ("Analyzer", "Sell Menu", "Turnover", "Monitor", "History", "Settings")
+    COMPACT_UI_VERSION = 2
 
     def __init__(self) -> None:
         super().__init__()
         self.setWindowTitle("Trade Agent")
-        self.setMinimumSize(540, 390)
-        self.resize(640, 490)
+        self.setMinimumSize(390, 320)
+        self.resize(430, 360)
         app_data = Path(os.environ.get("LOCALAPPDATA", str(Path.home() / "AppData" / "Local"))) / "TradeAgent"
         self.database = Database(app_data / "trade_agent.sqlite3")
         self.reliability = ReliabilityManager()
@@ -487,16 +498,16 @@ class MainWindow(QMainWindow):
         root.setSpacing(6)
         nav = QWidget(objectName="topNav")
         nav_layout = QHBoxLayout(nav)
-        nav_layout.setContentsMargins(8, 5, 8, 5)
-        nav_layout.setSpacing(8)
-        nav_layout.addWidget(QLabel("TRADE AGENT", objectName="brand"))
+        nav_layout.setContentsMargins(5, 3, 5, 3)
+        nav_layout.setSpacing(4)
         self.tabs = QTabBar()
         self.tabs.setExpanding(True)
         self.tabs.setDrawBase(False)
         for name in self.TAB_NAMES:
             self.tabs.addTab(name)
         nav_layout.addWidget(self.tabs, 1)
-        self.always_on_top = QCheckBox("On top")
+        self.always_on_top = QCheckBox("⇧")
+        self.always_on_top.setToolTip("Always on top")
         nav_layout.addWidget(self.always_on_top)
         root.addWidget(nav)
         self.pages = QStackedWidget()
@@ -526,8 +537,10 @@ class MainWindow(QMainWindow):
 
     def _restore_window_state(self) -> None:
         geometry = self.database.get_setting("window_geometry")
-        if isinstance(geometry, str):
+        if self.database.get_setting("compact_ui_version") == self.COMPACT_UI_VERSION and isinstance(geometry, str):
             self.restoreGeometry(QByteArray.fromBase64(geometry.encode("ascii")))
+        else:
+            self.database.set_setting("compact_ui_version", self.COMPACT_UI_VERSION)
         self.always_on_top.setChecked(bool(self.database.get_setting("always_on_top", False)))
 
     def _apply_always_on_top(self, enabled: bool) -> None:

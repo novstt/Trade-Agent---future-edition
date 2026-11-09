@@ -11,7 +11,8 @@ def test_compact_window_starts_on_analyzer_and_keeps_all_tabs(qtbot, monkeypatch
     assert [window.tabs.tabText(index) for index in range(window.tabs.count())] == [
         "Analyzer", "Sell Menu", "Turnover", "Monitor", "History", "Settings"
     ]
-    assert window.width() <= 640 and window.height() <= 490
+    assert 390 <= window.width() <= 430
+    assert 320 <= window.height() <= 360
     for index in range(window.tabs.count()):
         window.tabs.setCurrentIndex(index)
         assert window.pages.currentIndex() == index
