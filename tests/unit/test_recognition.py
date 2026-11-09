@@ -15,6 +15,7 @@ class FakeEngine:
         return [
             OcrToken("20,00G", 92, BoundingBox(700, 20, 50, 20)),
             OcrToken("21.37", 40, BoundingBox(700, 80, 50, 20)),
+            OcrToken("ЗАКАЗАТЬ", 97, BoundingBox(850, 20, 100, 20)),
             OcrToken("not-a-price", 99, BoundingBox(0, 0, 1, 1)),
         ]
 
@@ -29,3 +30,4 @@ def test_recognizer_keeps_low_confidence_separate_from_valid() -> None:
     assert len(result.readings) == 2
     assert result.readings[0].validation_status is ValidationStatus.VALID
     assert result.readings[1].validation_status is ValidationStatus.LOW_CONFIDENCE
+    assert any(token.text == "ЗАКАЗАТЬ" for token in result.tokens)

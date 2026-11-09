@@ -25,7 +25,7 @@ def test_incomplete_snapshot_has_no_average() -> None:
     result = ProfitEngine().calculate(snapshot(listings=[reading("25.00")] * 9), 1, Decimal("5.00"))
     assert result.average_price is None
     assert result.eligible is False
-    assert "incomplete" in result.reason.lower()
+    assert "непол" in result.reason.lower()
 
 
 def test_per_item_loss_threshold_is_inclusive() -> None:

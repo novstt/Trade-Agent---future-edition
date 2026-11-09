@@ -15,19 +15,19 @@ class CompactOverlay(QWidget):
 
     def __init__(self) -> None:
         super().__init__(None, Qt.Tool | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
-        self.setWindowTitle("Trade Agent Overlay")
+        self.setWindowTitle("Trade Agent — Overlay")
         self.setMinimumWidth(280)
         self._drag_origin: QPoint | None = None
         frame = QFrame(objectName="card")
         layout = QVBoxLayout(frame)
         layout.setContentsMargins(14, 12, 14, 12)
-        title = QLabel("TRADE AGENT  •  LIVE")
+        title = QLabel("TRADE AGENT  •  АКТИВНО")
         title.setObjectName("brand")
         title.setStyleSheet("font-size: 13px;")
         layout.addWidget(title)
         self.grid = QGridLayout()
         self.labels: dict[str, QLabel] = {}
-        for row, name in enumerate(("Item", "Request", "Average", "Net", "Result", "Quantity", "Sticker streak", "Status")):
+        for row, name in enumerate(("Предмет", "Запрос", "Среднее", "Чистая цена", "Результат", "Количество", "Серия наклеек", "Статус")):
             name_label = QLabel(name)
             name_label.setObjectName("subtle")
             value = QLabel("—")
@@ -36,7 +36,7 @@ class CompactOverlay(QWidget):
             self.grid.addWidget(value, row, 1)
             self.labels[name] = value
         layout.addLayout(self.grid)
-        stop = QPushButton("Emergency stop (F9)", objectName="danger")
+        stop = QPushButton("Аварийная остановка (F9)", objectName="danger")
         stop.clicked.connect(self.stop_requested)
         layout.addWidget(stop)
         outer = QVBoxLayout(self)
@@ -46,12 +46,12 @@ class CompactOverlay(QWidget):
     def update_market(self, item: str, request: Decimal | None, average: Decimal | None, net: Decimal | None,
                       result: Decimal | None, quantity: int, streak: int, status: str) -> None:
         values = {
-            "Item": item or "—", "Request": money(request), "Average": money(average), "Net": money(net),
-            "Result": money(result), "Quantity": str(quantity), "Sticker streak": str(streak), "Status": status,
+            "Предмет": item or "—", "Запрос": money(request), "Среднее": money(average), "Чистая цена": money(net),
+            "Результат": money(result), "Количество": str(quantity), "Серия наклеек": str(streak), "Статус": status,
         }
         for name, value in values.items():
             self.labels[name].setText(value)
-        result_label = self.labels["Result"]
+        result_label = self.labels["Результат"]
         if result is not None:
             result_label.setStyleSheet("color: #55dc9a; font-weight: 700;" if result >= 0 else "color: #ff727d; font-weight: 700;")
 

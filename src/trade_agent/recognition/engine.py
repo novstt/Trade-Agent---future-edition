@@ -39,9 +39,19 @@ class TesseractOcrEngine:
             if found:
                 self._pytesseract.pytesseract.tesseract_cmd = str(found)
             self._available = True
+            self.language = self._choose_language()
         except Exception:
             self._pytesseract = None
             self._available = False
+            self.language = "eng"
+
+    def _choose_language(self) -> str:
+        """Use Russian button text when its local trained data is installed; otherwise stay operational in English."""
+        try:
+            languages = set(self._pytesseract.get_languages(config=""))
+            return "eng+rus" if {"eng", "rus"}.issubset(languages) else "eng"
+        except Exception:
+            return "eng"
 
     @property
     def is_available(self) -> bool:
@@ -55,9 +65,10 @@ class TesseractOcrEngine:
 
     def read_tokens(self, image: Image.Image) -> list[OcrToken]:
         if not self.is_available:
-            raise RuntimeError("Tesseract executable was not found. Install it locally or configure PATH.")
+            raise RuntimeError("Исполняемый файл Tesseract не найден. Установите его локально или настройте PATH.")
         data = self._pytesseract.image_to_data(
             np.asarray(image.convert("RGB")),
+            lang=self.language,
             config="--oem 3 --psm 6",
             output_type=self._pytesseract.Output.DICT,
         )
@@ -86,4 +97,4 @@ class UnavailableOcrEngine:
         return False
 
     def read_tokens(self, image: Image.Image) -> list[OcrToken]:
-        raise RuntimeError("No local OCR engine is available.")
+        raise RuntimeError("Локальный OCR-движок недоступен.")

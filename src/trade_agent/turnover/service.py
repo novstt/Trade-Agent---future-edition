@@ -37,5 +37,5 @@ class SkinTurnoverService:
             maximum_loss_per_item=maximum_loss,
             eligible=result.eligible,
             projected_total=result.total_result,
-            cycle_note="Ready to place orders" if result.eligible else "Hold: loss threshold exceeded or snapshot incomplete",
+            cycle_note="Можно размещать заказы" if result.eligible else "Ожидание: превышен порог убытка или снимок неполный",
         )

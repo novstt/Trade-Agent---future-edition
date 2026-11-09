@@ -85,14 +85,14 @@ class AnalyzerPage(QWidget):
         root.setSpacing(5)
         header = QHBoxLayout()
         header.addWidget(QLabel("TRADE AGENT", objectName="sectionTitle"))
-        self.recognition_status = QLabel("READY", objectName="statusChip")
+        self.recognition_status = QLabel("ГОТОВО", objectName="statusChip")
         self.recognition_status.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         header.addWidget(self.recognition_status, 1)
         root.addLayout(header)
 
-        self.item_name = QLineEdit("Detected item")
+        self.item_name = QLineEdit("Распознанный предмет")
         self.request_price = QLineEdit()
-        self.request_price.setPlaceholderText("Request price")
+        self.request_price.setPlaceholderText("Цена запроса")
         self.quantity = QSpinBox()
         self.quantity.setRange(1, 99999)
         self.quantity.setValue(1)
@@ -104,10 +104,10 @@ class AnalyzerPage(QWidget):
         summary = QHBoxLayout()
         summary.setSpacing(6)
         item_result = QVBoxLayout()
-        item_result.addWidget(QLabel("P/L PER ITEM", objectName="subtle"))
+        item_result.addWidget(QLabel("ПРИБЫЛЬ / ШТ.", objectName="subtle"))
         item_result.addWidget(self.profit_value)
         total_result = QVBoxLayout()
-        total_result.addWidget(QLabel("EXPECTED TOTAL", objectName="subtle"))
+        total_result.addWidget(QLabel("ОЖИДАЕМЫЙ ИТОГ", objectName="subtle"))
         total_result.addWidget(self.total_value)
         summary.addLayout(item_result, 1)
         summary.addLayout(total_result, 1)
@@ -116,11 +116,11 @@ class AnalyzerPage(QWidget):
         fields = QGridLayout()
         fields.setHorizontalSpacing(10)
         fields.setVerticalSpacing(5)
-        self._add_field(fields, 0, 0, "REQUEST", self.request_price)
-        self._add_field(fields, 0, 1, "AVG / 10", self.average_value)
-        self._add_field(fields, 1, 0, "COMMISSION", self.commission_value)
-        self._add_field(fields, 1, 1, "NET SALE", self.net_value)
-        self._add_field(fields, 2, 0, "QUANTITY", self.quantity)
+        self._add_field(fields, 0, 0, "ЗАПРОС", self.request_price)
+        self._add_field(fields, 0, 1, "СРЕДНЕЕ / 10", self.average_value)
+        self._add_field(fields, 1, 0, "КОМИССИЯ", self.commission_value)
+        self._add_field(fields, 1, 1, "ЧИСТАЯ ПРОДАЖА", self.net_value)
+        self._add_field(fields, 2, 0, "КОЛИЧЕСТВО", self.quantity)
         root.addLayout(fields)
 
         hwnd_row = QHBoxLayout()
@@ -143,7 +143,7 @@ class AnalyzerPage(QWidget):
         controls.addWidget(self.monitor_button)
         controls.addWidget(self.edit_listings_button)
         root.addLayout(controls)
-        self.reason = QLabel("Waiting for 10 valid listings.", objectName="statusLine")
+        self.reason = QLabel("Ожидание 10 достоверных цен.", objectName="statusLine")
         self.reason.setWordWrap(False)
         root.addWidget(self.reason)
 
@@ -208,13 +208,13 @@ class AnalyzerPage(QWidget):
             self.request_price.setText(str(request.parsed_value))
         for index, field in enumerate(self.listing_prices):
             field.setText(str(listings[index].parsed_value) if index < len(listings) and listings[index].parsed_value is not None else "")
-        self.set_capture_status(f"OCR • {len(listings)}/10 listings")
-        self.reason.setText(ocr_message if listings else f"{ocr_message} No valid listing values found.")
+        self.set_capture_status(f"OCR • {len(listings)}/10 цен")
+        self.reason.setText(ocr_message if listings else f"{ocr_message} Достоверные цены не найдены.")
         self.calculate()
 
     def calculate(self) -> None:
         snapshot = self.analyzer.create_snapshot(
-            self.item_name.text().strip() or "Unnamed item", _reading_from_text(self.request_price.text()),
+            self.item_name.text().strip() or "Без названия", _reading_from_text(self.request_price.text()),
             [_reading_from_text(field.text()) for field in self.listing_prices],
         )
         result = self.profit_engine.calculate(snapshot, self.quantity.value(), Decimal("5.00"), self.commission)
@@ -249,9 +249,9 @@ class CaptureMonitorPage(QWidget):
         root.setSpacing(8)
         top = QHBoxLayout()
         self.window_combo = QComboBox()
-        self.refresh_button = QPushButton("Refresh")
-        self.start_button = QPushButton("Start", objectName="primary")
-        self.stop_button = QPushButton("Stop")
+        self.refresh_button = QPushButton("Обновить")
+        self.start_button = QPushButton("Старт", objectName="primary")
+        self.stop_button = QPushButton("Стоп")
         top.addWidget(self.window_combo, 1)
         top.addWidget(self.refresh_button)
         top.addWidget(self.start_button)
@@ -267,23 +267,23 @@ class CaptureMonitorPage(QWidget):
         hwnd_row.addWidget(self.use_hwnd_button)
         root.addLayout(hwnd_row)
         options = QHBoxLayout()
-        self.auto_analyze = QCheckBox("Auto OCR")
+        self.auto_analyze = QCheckBox("Авто OCR")
         self.auto_analyze.setChecked(True)
-        self.show_overlay = QCheckBox("Show overlay")
+        self.show_overlay = QCheckBox("Показать overlay")
         options.addWidget(self.auto_analyze)
         options.addWidget(self.show_overlay)
         options.addStretch()
         root.addLayout(options)
-        self.meta = QLabel("Stopped • select a window", objectName="subtle")
+        self.meta = QLabel("Остановлено • выберите окно", objectName="subtle")
         root.addWidget(self.meta)
-        self.preview = QLabel("No real frame received")
+        self.preview = QLabel("Реальный кадр ещё не получен")
         self.preview.setObjectName("capturePreview")
         self.preview.setAlignment(Qt.AlignCenter)
         self.preview.setMinimumHeight(220)
         root.addWidget(self.preview, 1)
         bottom = QHBoxLayout()
-        self.diagnostics = QLabel("Source: —\nResolution: —\nFPS: —\nOCR: waiting", objectName="subtle")
-        self.analyze_button = QPushButton("Analyse frame")
+        self.diagnostics = QLabel("Источник: —\nРазрешение: —\nFPS: —\nOCR: ожидание", objectName="subtle")
+        self.analyze_button = QPushButton("Проверить кадр")
         bottom.addWidget(self.diagnostics, 1)
         bottom.addWidget(self.analyze_button)
         root.addLayout(bottom)
@@ -299,14 +299,14 @@ class CaptureMonitorPage(QWidget):
     def refresh_windows(self) -> None:
         self.window_combo.clear()
         if self.provider is None:
-            self.window_combo.addItem("Windows capture unavailable")
+            self.window_combo.addItem("Захват Windows недоступен")
             return
         try:
             for window in self.provider.enumerate_windows():
                 self.window_combo.addItem(f"{window.title}  [{window.width}×{window.height}]", window)
-            self.set_status(f"Stopped • {self.window_combo.count()} windows")
+            self.set_status(f"Остановлено • окон: {self.window_combo.count()}")
         except Exception as exc:
-            self.set_status(f"Error • {exc}")
+            self.set_status(f"Ошибка • {exc}")
 
     def _start(self) -> None:
         window = self.selected_window()
@@ -314,7 +314,7 @@ class CaptureMonitorPage(QWidget):
             self.hwnd_ready.emit(window)
             self.start_requested.emit(window)
         else:
-            self.set_status("Select a visible window first")
+            self.set_status("Сначала выберите видимое окно")
 
     def selected_window(self) -> WindowInfo | None:
         window = self.window_combo.currentData()
@@ -323,21 +323,21 @@ class CaptureMonitorPage(QWidget):
     def get_selected_hwnd(self) -> WindowInfo | None:
         window = self.selected_window()
         if window is None:
-            self.set_status("Select a visible window first")
+            self.set_status("Сначала выберите видимое окно")
             return None
         self.hwnd_input.setText(f"0x{window.hwnd:X}")
         self.hwnd_ready.emit(window)
-        self.set_status(f"HWND received • 0x{window.hwnd:X}")
+        self.set_status(f"HWND получен • 0x{window.hwnd:X}")
         return window
 
     def _start_from_hwnd(self) -> None:
         if self.provider is None:
-            self.set_status("Windows capture unavailable")
+            self.set_status("Захват Windows недоступен")
             return
         try:
             window = self.provider.get_window_info(self.hwnd_input.text())
         except CaptureError as exc:
-            self.set_status(f"HWND error • {exc}")
+            self.set_status(f"Ошибка HWND • {exc}")
             return
         self.hwnd_ready.emit(window)
         self.start_requested.emit(window)
@@ -346,14 +346,14 @@ class CaptureMonitorPage(QWidget):
         self.last_image = frame.image
         self.preview.setPixmap(_pixmap(frame.image, self.preview.size()))
         self.diagnostics.setText(
-            f"Source: {frame.source.title}\nResolution: {frame.source.width}×{frame.source.height}  •  FPS: {fps or 0:.1f}"
-            f"\nLast frame: {frame.timestamp.astimezone().strftime('%H:%M:%S')}"
+            f"Источник: {frame.source.title}\nРазрешение: {frame.source.width}×{frame.source.height}  •  FPS: {fps or 0:.1f}"
+            f"\nПоследний кадр: {frame.timestamp.astimezone().strftime('%H:%M:%S')}"
         )
 
     def set_annotated(self, image: Image.Image, result: RecognitionResult) -> None:
         self.preview.setPixmap(_pixmap(image, self.preview.size()))
-        status = "ready" if result.ocr_available else "unavailable"
-        self.diagnostics.setText(self.diagnostics.text().split("\nOCR:")[0] + f"\nOCR: {status}; {len(result.readings)} values")
+        status = "готов" if result.ocr_available else "недоступен"
+        self.diagnostics.setText(self.diagnostics.text().split("\nOCR:")[0] + f"\nOCR: {status}; цен: {len(result.readings)}")
 
     def set_status(self, text: str) -> None:
         self.meta.setText(text)
@@ -369,8 +369,8 @@ class SellMenuPage(QWidget):
         root.setContentsMargins(14, 12, 14, 12)
         root.setSpacing(8)
         top = QHBoxLayout()
-        self.analyse_button = QPushButton("Analyse current capture", objectName="primary")
-        self.status = QLabel("Waiting for a Sell Menu capture", objectName="subtle")
+        self.analyse_button = QPushButton("Проверить текущий кадр", objectName="primary")
+        self.status = QLabel("Ожидание кадра из меню продажи", objectName="subtle")
         top.addWidget(self.analyse_button)
         top.addWidget(self.status, 1)
         root.addLayout(top)
@@ -378,36 +378,36 @@ class SellMenuPage(QWidget):
         self.streak = QLabel("0", objectName="value")
         self.sticker_count = QLabel("0", objectName="value")
         self.normal_count = QLabel("0", objectName="value")
-        for label, value in (("Streak", self.streak), ("Sticker", self.sticker_count), ("Normal", self.normal_count)):
+        for label, value in (("Серия", self.streak), ("С наклейкой", self.sticker_count), ("Обычные", self.normal_count)):
             metrics.addWidget(QLabel(label, objectName="subtle"))
             metrics.addWidget(value)
         metrics.addStretch()
         root.addLayout(metrics)
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["Item", "Class", "Confidence"])
+        self.table.setHorizontalHeaderLabels(["Предмет", "Класс", "Точность"])
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         root.addWidget(self.table, 1)
 
     def analyze_image(self, image: Image.Image | None) -> None:
         if image is None:
-            self.status.setText("Capture a real Sell Menu frame first")
+            self.status.setText("Сначала получите реальный кадр меню продажи")
             return
         cards = self.detector.detect_cards(image)
         added = 0
         for index, card in enumerate(cards):
             crop = image.crop((card.x, card.y, card.right, card.bottom))
-            item = self.inventory.analyse_card(f"Sell card {index + 1}", crop, card)
+            item = self.inventory.analyse_card(f"Карточка продажи {index + 1}", crop, card)
             if item is None:
                 continue
             added += 1
             row = self.table.rowCount()
             self.table.insertRow(row)
             self.table.setItem(row, 0, QTableWidgetItem(item.name))
-            self.table.setItem(row, 1, QTableWidgetItem("STICKER" if item.has_sticker else "NORMAL"))
+            self.table.setItem(row, 1, QTableWidgetItem("С НАКЛЕЙКОЙ" if item.has_sticker else "ОБЫЧНЫЙ"))
             self.table.setItem(row, 2, QTableWidgetItem(f"{item.confidence:.0%}"))
         self._show_counts()
-        self.status.setText(f"{len(cards)} candidates • {added} new items")
+        self.status.setText(f"Кандидатов: {len(cards)} • новых предметов: {added}")
         self.session_changed.emit(self.inventory.current_streak, len(self.inventory.normal_items))
 
     def _show_counts(self) -> None:
@@ -418,7 +418,7 @@ class SellMenuPage(QWidget):
     def reset_display(self) -> None:
         self.table.setRowCount(0)
         self._show_counts()
-        self.status.setText("Session stopped")
+        self.status.setText("Сессия остановлена")
 
 
 class TurnoverPage(QWidget):
@@ -427,8 +427,8 @@ class TurnoverPage(QWidget):
         self.service = SkinTurnoverService()
         root = QVBoxLayout(self)
         root.setContentsMargins(14, 12, 14, 12)
-        root.addWidget(QLabel("TURNOVER", objectName="sectionTitle"))
-        self.text = QLabel("Run a valid market calculation to create a scenario.", objectName="subtle")
+        root.addWidget(QLabel("ОБОРОТ", objectName="sectionTitle"))
+        self.text = QLabel("Выполните расчёт рынка, чтобы построить сценарий.", objectName="subtle")
         self.text.setWordWrap(True)
         root.addWidget(self.text)
         root.addStretch()
@@ -436,8 +436,8 @@ class TurnoverPage(QWidget):
     def update_from_calculation(self, result, quantity: int, loss: Decimal) -> None:
         scenario = self.service.simulate(result, quantity, loss)
         self.text.setText(
-            f"Target: {scenario.target_quantity}\nMax loss / item: {_money(scenario.maximum_loss_per_item)}"
-            f"\nProjected result: {_money(scenario.projected_total)}\n{scenario.cycle_note}"
+            f"Цель: {scenario.target_quantity}\nМакс. убыток / шт.: {_money(scenario.maximum_loss_per_item)}"
+            f"\nОжидаемый результат: {_money(scenario.projected_total)}\n{scenario.cycle_note}"
         )
 
 
@@ -448,14 +448,14 @@ class HistoryPage(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(14, 12, 14, 12)
         top = QHBoxLayout()
-        top.addWidget(QLabel("HISTORY", objectName="sectionTitle"))
-        refresh = QPushButton("Refresh")
+        top.addWidget(QLabel("ИСТОРИЯ", objectName="sectionTitle"))
+        refresh = QPushButton("Обновить")
         refresh.clicked.connect(self.refresh)
         top.addStretch()
         top.addWidget(refresh)
         root.addLayout(top)
         self.table = QTableWidget(0, 3)
-        self.table.setHorizontalHeaderLabels(["When", "Type", "Detail"])
+        self.table.setHorizontalHeaderLabels(["Когда", "Тип", "Детали"])
         self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.table.setAlternatingRowColors(True)
         root.addWidget(self.table, 1)
@@ -481,27 +481,27 @@ class SettingsPage(QWidget):
         root = QVBoxLayout(self)
         root.setContentsMargins(14, 12, 14, 12)
         root.setSpacing(8)
-        root.addWidget(QLabel("SETTINGS", objectName="sectionTitle"))
+        root.addWidget(QLabel("НАСТРОЙКИ", objectName="sectionTitle"))
         form = QFormLayout()
         self.commission = QLineEdit(str(database.get_setting("commission_percent", "20")))
         self.frame_interval = QSpinBox()
         self.frame_interval.setRange(100, 5000)
         self.frame_interval.setValue(int(database.get_setting("capture_interval_ms", 350)))
-        form.addRow("Commission (%)", self.commission)
-        form.addRow("Capture interval (ms)", self.frame_interval)
+        form.addRow("Комиссия (%)", self.commission)
+        form.addRow("Интервал захвата (мс)", self.frame_interval)
         root.addLayout(form)
         self.ocr_note = QLabel(self._ocr_message(), objectName="subtle")
         self.ocr_note.setWordWrap(True)
         root.addWidget(self.ocr_note)
-        save = QPushButton("Save", objectName="primary")
+        save = QPushButton("Сохранить", objectName="primary")
         save.clicked.connect(self.save)
         root.addWidget(save, alignment=Qt.AlignLeft)
         root.addStretch()
 
     def _ocr_message(self) -> str:
         if self.ocr_engine.is_available:
-            return f"Tesseract: ready • {self.ocr_engine.executable_path}"
-        return f"Tesseract not found. Checked: {self.ocr_engine.executable_path}. Install it or add it to PATH; capture remains available."
+            return f"Tesseract: готов • {self.ocr_engine.executable_path}"
+        return f"Tesseract не найден. Проверен путь: {self.ocr_engine.executable_path}. Установите его или добавьте в PATH; захват остаётся доступным."
 
     def save(self) -> None:
         try:
@@ -509,16 +509,16 @@ class SettingsPage(QWidget):
             if not Decimal("0") <= percent < Decimal("100"):
                 raise InvalidOperation
         except (InvalidOperation, ValueError):
-            self.ocr_note.setText("Commission must be from 0 to less than 100.")
+            self.ocr_note.setText("Комиссия должна быть от 0 до 100, не включая 100.")
             return
         self.database.set_setting("commission_percent", str(percent))
         self.database.set_setting("capture_interval_ms", self.frame_interval.value())
         self.commission_changed.emit(percent)
-        self.ocr_note.setText(f"Saved • {self._ocr_message()}")
+        self.ocr_note.setText(f"Сохранено • {self._ocr_message()}")
 
 
 class MainWindow(QMainWindow):
-    TAB_NAMES = ("Analyzer", "Sell Menu", "Turnover", "Monitor", "History", "Settings")
+    TAB_NAMES = ("Анализ", "Продажа", "Оборот", "Монитор", "История", "Настройки")
     COMPACT_UI_VERSION = 2
 
     def __init__(self) -> None:
@@ -567,7 +567,7 @@ class MainWindow(QMainWindow):
             self.tabs.addTab(name)
         nav_layout.addWidget(self.tabs, 1)
         self.always_on_top = QCheckBox("⇧")
-        self.always_on_top.setToolTip("Always on top")
+        self.always_on_top.setToolTip("Поверх всех окон")
         nav_layout.addWidget(self.always_on_top)
         root.addWidget(nav)
         self.pages = QStackedWidget()
@@ -618,35 +618,35 @@ class MainWindow(QMainWindow):
 
     def _start_from_monitor_selection(self) -> None:
         if self.provider is None:
-            self.market_page.set_capture_status("Capture unavailable")
+            self.market_page.set_capture_status("Захват недоступен")
             return
         if self.market_page.selected_window is not None:
             try:
                 self.start_capture(self.provider.get_window_info(self.market_page.selected_window.hwnd))
             except CaptureError as exc:
-                self.market_page.set_capture_status(f"HWND error • {exc}")
+                self.market_page.set_capture_status(f"Ошибка HWND • {exc}")
             return
         window = self.capture_page.get_selected_hwnd()
         if isinstance(window, WindowInfo):
             self.start_capture(window)
         else:
-            self.market_page.set_capture_status("Select source in Monitor")
+            self.market_page.set_capture_status("Выберите источник в Мониторе")
             self.tabs.setCurrentIndex(3)
 
     def _get_selected_hwnd(self) -> None:
         window = self.capture_page.get_selected_hwnd()
         if window is None:
-            self.market_page.set_capture_status("Select source in Monitor")
+            self.market_page.set_capture_status("Выберите источник в Мониторе")
             self.tabs.setCurrentIndex(3)
         else:
             self.market_page.set_hwnd(window)
-            self.market_page.set_capture_status("HWND ready")
+            self.market_page.set_capture_status("HWND готов")
 
     def start_capture(self, window: WindowInfo) -> None:
         self.stop_capture()
         if self.provider is None:
-            self.capture_page.set_status("Error • Windows capture unavailable")
-            self.market_page.set_capture_status("Capture unavailable")
+            self.capture_page.set_status("Ошибка • захват Windows недоступен")
+            self.market_page.set_capture_status("Захват недоступен")
             return
         interval = int(self.database.get_setting("capture_interval_ms", 350))
         self.capture_worker = CaptureWorker(self.provider, window, interval)
@@ -655,20 +655,25 @@ class MainWindow(QMainWindow):
         self.capture_worker.status_changed.connect(self._capture_status)
         self.capture_worker.metrics_changed.connect(self._capture_metrics)
         self.capture_worker.start()
-        self.capture_page.set_status(f"Capturing • {window.title}")
-        self.market_page.set_capture_status("Capturing • waiting for frame")
+        self.capture_page.set_status(f"Захват • {window.title}")
+        self.market_page.set_capture_status("Захват • ожидание кадра")
 
     def stop_capture(self) -> None:
         if self.capture_worker and self.capture_worker.isRunning():
             self.capture_worker.stop()
             self.capture_worker.wait(1800)
         self.capture_worker = None
-        self.capture_page.set_status("Stopped")
-        self.market_page.set_capture_status("Stopped")
+        self.capture_page.set_status("Остановлено")
+        self.market_page.set_capture_status("Остановлено")
 
     def _capture_status(self, status: str) -> None:
-        self.capture_page.set_status(status.title())
-        self.market_page.set_capture_status(status.title())
+        localized = {
+            "CAPTURING": "Захват",
+            "DEGRADED": "Снижение надёжности",
+            "STOPPED": "Остановлено",
+        }.get(status, status)
+        self.capture_page.set_status(localized)
+        self.market_page.set_capture_status(localized)
 
     def _capture_metrics(self, fps: float, _timestamp) -> None:
         self.current_fps = fps
@@ -676,8 +681,14 @@ class MainWindow(QMainWindow):
     def _capture_error(self, message: str) -> None:
         state = self.reliability.record_error(message)
         self.database.log("WARNING", message)
-        self.capture_page.set_status(f"{state.value} • {message}")
-        self.market_page.set_capture_status(f"{state.value} • capture error")
+        localized_state = {
+            ReliabilityState.NORMAL: "Нормально",
+            ReliabilityState.DEGRADED: "Снижение надёжности",
+            ReliabilityState.RECOVERY: "Восстановление",
+            ReliabilityState.SAFE_STOP: "Безопасная остановка",
+        }[state]
+        self.capture_page.set_status(f"{localized_state} • {message}")
+        self.market_page.set_capture_status(f"{localized_state} • ошибка захвата")
         if state is ReliabilityState.SAFE_STOP:
             self.stop_capture()
 
@@ -685,13 +696,13 @@ class MainWindow(QMainWindow):
         self.last_frame = frame
         self.reliability.record_success(frame.timestamp)
         self.capture_page.set_frame(frame, self.current_fps)
-        self.market_page.set_capture_status("Live frame • OCR queued")
+        self.market_page.set_capture_status("Кадр получен • OCR в очереди")
         if self.capture_page.auto_analyze.isChecked() and not self.recognition_busy:
             self.analyze_current_frame()
 
     def analyze_current_frame(self) -> None:
         if self.last_frame is None:
-            self.capture_page.set_status("No frame available for OCR")
+            self.capture_page.set_status("Нет кадра для OCR")
             return
         if self.recognition_busy:
             return
@@ -699,7 +710,7 @@ class MainWindow(QMainWindow):
         task = RecognitionTask(self.recognizer, self.last_frame.image, self.last_frame.timestamp)
         task.signals.completed.connect(self._recognition_completed)
         self.thread_pool.start(task)
-        self.market_page.set_capture_status("Analysing • local OCR")
+        self.market_page.set_capture_status("Анализ • локальный OCR")
 
     def _recognition_completed(self, result: RecognitionResult) -> None:
         self.recognition_busy = False
@@ -707,9 +718,9 @@ class MainWindow(QMainWindow):
             return
         self.capture_page.set_annotated(self._annotate(self.last_frame.image, result), result)
         request, listings = self.extractor.extract(result, self.last_frame.source.width)
-        message = result.error or ("Local OCR complete" if result.ocr_available else "Local OCR unavailable")
+        message = result.error or ("Локальный OCR завершён" if result.ocr_available else "Локальный OCR недоступен")
         self.market_page.apply_recognition(request, listings, message)
-        self.capture_page.set_status("Capturing • OCR updated" if self.capture_worker else "Stopped • OCR updated")
+        self.capture_page.set_status("Захват • OCR обновлён" if self.capture_worker else "Остановлено • OCR обновлён")
 
     @staticmethod
     def _annotate(image: Image.Image, result: RecognitionResult) -> Image.Image:
@@ -728,9 +739,15 @@ class MainWindow(QMainWindow):
     def _calculation_updated(self, snapshot, result, quantity: int) -> None:
         request = snapshot.request_price.parsed_value if snapshot.request_price else None
         self.turnover_page.update_from_calculation(result, quantity, Decimal("5.00"))
+        reliability_label = {
+            ReliabilityState.NORMAL: "Нормально",
+            ReliabilityState.DEGRADED: "Снижение надёжности",
+            ReliabilityState.RECOVERY: "Восстановление",
+            ReliabilityState.SAFE_STOP: "Безопасная остановка",
+        }[self.reliability.state]
         self.overlay.update_market(
             snapshot.item_name, request, result.average_price, result.net_sale_price,
-            result.per_item_result, quantity, self.inventory.current_streak, self.reliability.state.value,
+            result.per_item_result, quantity, self.inventory.current_streak, reliability_label,
         )
 
     def _inventory_changed(self, _streak: int, _normal: int) -> None:
@@ -749,8 +766,8 @@ class MainWindow(QMainWindow):
             self.database.save_sticker_session(started, datetime.now(timezone.utc), sticker_count, normal_count)
         self.reliability.safe_stop()
         self.sell_page.reset_display()
-        self.capture_page.set_status("Safe stop • F9 completed")
-        self.market_page.set_capture_status("Safe stop • F9 completed")
+        self.capture_page.set_status("Безопасная остановка • F9 выполнена")
+        self.market_page.set_capture_status("Безопасная остановка • F9 выполнена")
         self.overlay.hide()
 
     def closeEvent(self, event) -> None:

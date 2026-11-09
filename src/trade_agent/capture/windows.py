@@ -24,9 +24,9 @@ def parse_hwnd(value: int | str) -> int:
         text = str(value).strip()
         hwnd = int(text, 16) if text.casefold().startswith("0x") else int(text, 10)
     except (TypeError, ValueError) as exc:
-        raise CaptureError("HWND must be a decimal number or a value beginning with 0x.") from exc
+        raise CaptureError("HWND должен быть десятичным числом или значением с префиксом 0x.") from exc
     if hwnd <= 0:
-        raise CaptureError("HWND must be greater than zero.")
+        raise CaptureError("HWND должен быть больше нуля.")
     return hwnd
 
 
@@ -40,19 +40,39 @@ if os.name == "nt":
     user32 = ctypes.WinDLL("user32", use_last_error=True)
     gdi32 = ctypes.WinDLL("gdi32", use_last_error=True)
     # ctypes defaults pointer-returning Win32 calls to c_int, which truncates HWND/HDC values on 64-bit Windows.
+    user32.GetWindowDC.argtypes = [wintypes.HWND]
     user32.GetWindowDC.restype = wintypes.HDC
+    user32.ReleaseDC.argtypes = [wintypes.HWND, wintypes.HDC]
     user32.ReleaseDC.restype = ctypes.c_int
+    user32.PrintWindow.argtypes = [wintypes.HWND, wintypes.HDC, wintypes.UINT]
     user32.PrintWindow.restype = wintypes.BOOL
+    user32.GetWindowRect.argtypes = [wintypes.HWND, ctypes.POINTER(wintypes.RECT)]
     user32.GetWindowRect.restype = wintypes.BOOL
+    user32.IsWindow.argtypes = [wintypes.HWND]
     user32.IsWindow.restype = wintypes.BOOL
+    user32.IsIconic.argtypes = [wintypes.HWND]
     user32.IsIconic.restype = wintypes.BOOL
+    user32.IsWindowVisible.argtypes = [wintypes.HWND]
+    user32.IsWindowVisible.restype = wintypes.BOOL
+    user32.GetWindowTextLengthW.argtypes = [wintypes.HWND]
+    user32.GetWindowTextLengthW.restype = ctypes.c_int
+    user32.GetWindowTextW.argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    user32.GetWindowTextW.restype = ctypes.c_int
+    gdi32.CreateCompatibleDC.argtypes = [wintypes.HDC]
     gdi32.CreateCompatibleDC.restype = wintypes.HDC
+    gdi32.CreateCompatibleBitmap.argtypes = [wintypes.HDC, ctypes.c_int, ctypes.c_int]
     gdi32.CreateCompatibleBitmap.restype = wintypes.HBITMAP
+    gdi32.SelectObject.argtypes = [wintypes.HDC, wintypes.HGDIOBJ]
     gdi32.SelectObject.restype = wintypes.HGDIOBJ
+    gdi32.DeleteDC.argtypes = [wintypes.HDC]
     gdi32.DeleteDC.restype = wintypes.BOOL
+    gdi32.DeleteObject.argtypes = [wintypes.HGDIOBJ]
     gdi32.DeleteObject.restype = wintypes.BOOL
+    gdi32.BitBlt.argtypes = [
+        wintypes.HDC, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, wintypes.HDC,
+        ctypes.c_int, ctypes.c_int, wintypes.DWORD,
+    ]
     gdi32.BitBlt.restype = wintypes.BOOL
-    gdi32.GetDIBits.restype = ctypes.c_int
 
     class BITMAPINFOHEADER(ctypes.Structure):
         _fields_ = [
@@ -65,6 +85,12 @@ if os.name == "nt":
     class BITMAPINFO(ctypes.Structure):
         _fields_ = [("bmiHeader", BITMAPINFOHEADER), ("bmiColors", wintypes.DWORD * 3)]
 
+    gdi32.GetDIBits.argtypes = [
+        wintypes.HDC, wintypes.HBITMAP, wintypes.UINT, wintypes.UINT, ctypes.c_void_p,
+        ctypes.POINTER(BITMAPINFO), wintypes.UINT,
+    ]
+    gdi32.GetDIBits.restype = ctypes.c_int
+
     EnumWindowsProc = ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
     PW_RENDERFULLCONTENT = 0x00000002
     SRCCOPY = 0x00CC0020
@@ -76,7 +102,7 @@ class WindowsCaptureProvider:
 
     def __init__(self) -> None:
         if os.name != "nt":
-            raise OSError("WindowsCaptureProvider requires Windows.")
+            raise OSError("WindowsCaptureProvider работает только в Windows.")
         # Logical pixels are a poor fit for a physical screenshot; this makes the process DPI-aware.
         try:
             user32.SetProcessDPIAware()
@@ -99,7 +125,7 @@ class WindowsCaptureProvider:
             return True
 
         if not user32.EnumWindows(visitor, 0):
-            raise CaptureError(f"EnumWindows failed: {ctypes.get_last_error()}")
+            raise CaptureError(f"Не удалось перечислить окна: {ctypes.get_last_error()}")
         return sorted(windows, key=lambda entry: entry.title.casefold())
 
     def get_window_info(self, hwnd: int | str) -> WindowInfo:
@@ -107,46 +133,46 @@ class WindowsCaptureProvider:
         handle_value = parse_hwnd(hwnd)
         handle = wintypes.HWND(handle_value)
         if not user32.IsWindow(handle):
-            raise CaptureError("HWND does not identify a current window.")
+            raise CaptureError("HWND не соответствует существующему окну.")
         length = user32.GetWindowTextLengthW(handle)
         title_buffer = ctypes.create_unicode_buffer(max(length + 1, 2))
         user32.GetWindowTextW(handle, title_buffer, len(title_buffer))
         rect = wintypes.RECT()
         if not user32.GetWindowRect(handle, ctypes.byref(rect)):
-            raise CaptureError(f"Could not read HWND dimensions: {ctypes.get_last_error()}")
+            raise CaptureError(f"Не удалось получить размеры HWND: {ctypes.get_last_error()}")
         width, height = rect.right - rect.left, rect.bottom - rect.top
         if width <= 1 or height <= 1:
-            raise CaptureError("HWND has no capturable area.")
+            raise CaptureError("У HWND нет доступной для захвата области.")
         title = title_buffer.value.strip() or f"HWND 0x{handle_value:X}"
         return WindowInfo(handle_value, title, width, height)
 
     def capture(self, window: WindowInfo) -> CaptureFrame:
         hwnd = wintypes.HWND(window.hwnd)
         if not user32.IsWindow(hwnd):
-            raise CaptureError("Selected window no longer exists.")
+            raise CaptureError("Выбранное окно больше не существует.")
         if user32.IsIconic(hwnd):
-            raise CaptureError("Selected window is minimized; restore it before capture.")
+            raise CaptureError("Выбранное окно свёрнуто. Разверните его перед захватом.")
         rect = wintypes.RECT()
         if not user32.GetWindowRect(hwnd, ctypes.byref(rect)):
-            raise CaptureError(f"Could not read selected window size: {ctypes.get_last_error()}")
+            raise CaptureError(f"Не удалось получить размер выбранного окна: {ctypes.get_last_error()}")
         width, height = rect.right - rect.left, rect.bottom - rect.top
         if width <= 1 or height <= 1:
-            raise CaptureError("Selected window has no capturable area.")
+            raise CaptureError("У выбранного окна нет доступной для захвата области.")
 
         window_dc = user32.GetWindowDC(hwnd)
         if not window_dc:
-            raise CaptureError(f"GetWindowDC failed: {ctypes.get_last_error()}")
+            raise CaptureError(f"GetWindowDC завершился с ошибкой: {ctypes.get_last_error()}")
         mem_dc = bitmap = old = None
         try:
             mem_dc = gdi32.CreateCompatibleDC(window_dc)
             bitmap = gdi32.CreateCompatibleBitmap(window_dc, width, height)
             if not mem_dc or not bitmap:
-                raise CaptureError(f"Could not allocate capture bitmap: {ctypes.get_last_error()}")
+                raise CaptureError(f"Не удалось выделить bitmap для захвата: {ctypes.get_last_error()}")
             old = gdi32.SelectObject(mem_dc, bitmap)
             # Modern windows often render better through PrintWindow. BitBlt is a real-pixel fallback.
             rendered = bool(user32.PrintWindow(hwnd, mem_dc, PW_RENDERFULLCONTENT))
             if not rendered and not gdi32.BitBlt(mem_dc, 0, 0, width, height, window_dc, 0, 0, SRCCOPY):
-                raise CaptureError(f"Window capture failed: {ctypes.get_last_error()}")
+                raise CaptureError(f"Захват окна завершился с ошибкой: {ctypes.get_last_error()}")
 
             info = BITMAPINFO()
             info.bmiHeader.biSize = ctypes.sizeof(BITMAPINFOHEADER)
@@ -158,7 +184,7 @@ class WindowsCaptureProvider:
             pixels = (ctypes.c_ubyte * (width * height * 4))()
             rows = gdi32.GetDIBits(mem_dc, bitmap, 0, height, pixels, ctypes.byref(info), DIB_RGB_COLORS)
             if rows != height:
-                raise CaptureError(f"Could not read captured pixels: {ctypes.get_last_error()}")
+                raise CaptureError(f"Не удалось прочитать пиксели кадра: {ctypes.get_last_error()}")
             image = Image.frombuffer("RGBA", (width, height), pixels, "raw", "BGRA", 0, 1).copy()
             actual_window = WindowInfo(window.hwnd, window.title, width, height)
             return CaptureFrame(image=image, source=actual_window, timestamp=datetime.now(timezone.utc))
@@ -182,7 +208,7 @@ class WindowsGraphicsCaptureProvider:
         return WindowsCaptureProvider().get_window_info(hwnd)
 
     def capture(self, window: WindowInfo) -> CaptureFrame:
-        raise CaptureError("Windows Graphics Capture provider is not installed; select Win32 GDI capture.")
+        raise CaptureError("Провайдер Windows Graphics Capture не установлен; используйте Win32 GDI.")
 
 
 class CaptureWorker(QThread):

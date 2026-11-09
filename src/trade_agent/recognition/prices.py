@@ -25,6 +25,7 @@ class RecognitionResult:
     rows: tuple[tuple[DetectedRegion, ...], ...]
     ocr_available: bool
     error: Optional[str] = None
+    tokens: tuple[OcrToken, ...] = ()
 
 
 class PriceRecognizer:
@@ -58,14 +59,14 @@ class PriceRecognizer:
         is_stale = self._last_change_at is not None and (timestamp - self._last_change_at).total_seconds() > 4
 
         if not self.engine.is_available:
-            return RecognitionResult((), tuple(regions), tuple(tuple(row) for row in rows), False, "Local OCR engine unavailable.")
+            return RecognitionResult((), tuple(regions), tuple(tuple(row) for row in rows), False, "Локальный OCR-движок недоступен.")
         try:
             tokens = self.engine.read_tokens(image)
         except Exception as exc:
             return RecognitionResult((), tuple(regions), tuple(tuple(row) for row in rows), True, str(exc))
 
         readings = tuple(self._reading_from_token(token, timestamp, is_stale) for token in tokens if self.parse_price(token.text) is not None)
-        return RecognitionResult(readings, tuple(regions), tuple(tuple(row) for row in rows), True)
+        return RecognitionResult(readings, tuple(regions), tuple(tuple(row) for row in rows), True, tokens=tuple(tokens))
 
     def _reading_from_token(self, token: OcrToken, timestamp: datetime, is_stale: bool) -> PriceReading:
         value = self.parse_price(token.text)

@@ -91,8 +91,8 @@ class Database:
 
     def recent_history(self, limit: int = 20) -> list[sqlite3.Row]:
         return list(self.connection.execute(
-            "SELECT created_at AS happened_at, 'Calculation' AS kind, reason AS detail FROM calculations "
-            "UNION ALL SELECT captured_at, 'Market snapshot', item_name FROM market_snapshots "
+            "SELECT created_at AS happened_at, 'Расчёт' AS kind, reason AS detail FROM calculations "
+            "UNION ALL SELECT captured_at, 'Снимок рынка', item_name FROM market_snapshots "
             "ORDER BY happened_at DESC LIMIT ?", (limit,)
         ))
 
